@@ -68,6 +68,7 @@ gh release create vX.Y.Z --target <branch> --title "GT-POS Gizmo Manager vX.Y.Z 
 
 | الإصدار | الحزمة | الإصدار على GitHub |
 |---|---|---|
+| 3.6.2 | `releases/GT.Pos.Manager-3.6.2.zip` | https://github.com/AdooGT-Technology/GT.Pos.Manager/releases/tag/v3.6.2 |
 | 3.6.1 | `releases/GT.Pos.Manager-3.6.1.zip` | https://github.com/AdooGT-Technology/GT.Pos.Manager/releases/tag/v3.6.1 |
 | 3.6.0 | `releases/GT.Pos.Manager-3.6.0.zip` | https://github.com/AdooGT-Technology/GT.Pos.Manager/releases/tag/v3.6.0 |
 | 3.5.0 | `releases/GT.Pos.Manager-3.5.0.zip` | https://github.com/AdooGT-Technology/GT.Pos.Manager/releases/tag/v3.5.0 |

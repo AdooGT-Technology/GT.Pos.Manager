@@ -14,7 +14,14 @@ from Manager.ui import (
     Card, EmptyState, SearchInput, Segmented, Toast, button, hline, label,
 )
 
-TAX_RATE = 0.15
+FALLBACK_TAX = 0.15
+
+
+def _currency_text(amount) -> str:
+    try:
+        return f"{float(amount or 0):,.2f} ر.س"
+    except (TypeError, ValueError):
+        return "0.00 ر.س"
 
 
 class ProductTile(QFrame):
@@ -46,7 +53,7 @@ class ProductTile(QFrame):
         layout.addWidget(name)
 
         bottom = QHBoxLayout()
-        price = label(f"{float(product.get('Price') or 0):,.2f} ر.س", "Title")
+        price = label(_currency_text(product.get("Price")), "Title")
         add = button("إضافة", "ghost", self._add, compact=True)
         bottom.addWidget(price)
         bottom.addStretch()
@@ -127,8 +134,8 @@ class POSWidget(QWidget):
 
         cart.body.addWidget(hline())
         self.subtotal_label = label("المجموع 0.00", "Muted")
-        self.tax_label = label("الضريبة 15%  0.00", "Muted")
-        self.total_label = label("0.00 ر.س", "Money")
+        self.tax_label = label("الضريبة 0.00", "Muted")
+        self.total_label = label("0.00", "Money")
         cart.body.addWidget(self.subtotal_label)
         cart.body.addWidget(self.tax_label)
         cart.body.addWidget(self.total_label)
@@ -235,11 +242,17 @@ class POSWidget(QWidget):
             box.addWidget(button(f"{total:,.2f}", "ghost", lambda _c=False, l=line: self._change(l, -qty), compact=True))
             self.cart_box.addWidget(row)
 
-        tax = subtotal * TAX_RATE
+        rate, inclusive, tax_name = self.data.settings.tax()
+        tax = 0.0 if inclusive else subtotal * rate
+        self._tax_rate = rate
+        money = self.data.settings.money
         self.cart_count.setText(f"{count} عنصر")
-        self.subtotal_label.setText(f"المجموع {subtotal:,.2f}")
-        self.tax_label.setText(f"الضريبة 15%  {tax:,.2f}")
-        self.total_label.setText(f"{subtotal + tax:,.2f} ر.س")
+        self.subtotal_label.setText(f"المجموع {money(subtotal)}")
+        self.tax_label.setText(
+            f"{tax_name} {rate * 100:.0f}%  {money(tax)}" if rate
+            else f"{tax_name}: لا توجد ضريبة"
+        )
+        self.total_label.setText(self.data.settings.money(subtotal + tax))
 
     def _change(self, line: dict, delta: int):
         line["qty"] += delta
@@ -258,10 +271,11 @@ class POSWidget(QWidget):
             Toast(self, "الفاتورة فارغة", "warning")
             return
         subtotal = sum(float(l["product"].get("Price") or 0) * l["qty"] for l in self.cart)
-        total = subtotal * (1 + TAX_RATE)
+        rate, inclusive, _name = self.data.settings.tax()
+        total = subtotal if inclusive else subtotal * (1 + rate)
         answer = QMessageBox.question(
             self, "إتمام البيع",
-            f"سيتم تسجيل فاتورة بمبلغ {total:,.2f} ر.س.\nهل تريد المتابعة؟",
+            f"سيتم تسجيل فاتورة بمبلغ {self.data.settings.money(total)}.\nهل تريد المتابعة؟",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if answer != QMessageBox.StandardButton.Yes:
@@ -277,7 +291,7 @@ class POSWidget(QWidget):
                     "INSERT INTO Orders (ProductId, ProductName, Quantity, UnitPrice,"
                     " TotalPrice, FinalAmount, Status) VALUES (?, ?, ?, ?, ?, ?, ?)",
                     (product.get("ProductId"), product.get("ProductName"), qty,
-                     unit, unit * qty, unit * qty * (1 + TAX_RATE), "مكتمل"),
+                     unit, unit * qty, unit * qty * (1 + rate), "مكتمل"),
                 )
                 saved = saved and ok
                 if int(product.get("Stock") or 0) < 900:
@@ -289,7 +303,7 @@ class POSWidget(QWidget):
             saved = False
 
         if saved:
-            Toast(self, f"سُجّلت الفاتورة — {total:,.2f} ر.س", "success")
+            Toast(self, f"سُجّلت الفاتورة — {self.data.settings.money(total)}", "success")
         else:
             Toast(self, "لم تُحفظ الفاتورة: قاعدة البيانات غير متصلة", "warning", 3200)
         self.clear_cart()

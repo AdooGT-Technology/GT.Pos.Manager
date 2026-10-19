@@ -244,8 +244,38 @@ class MainManager(QMainWindow):
         if app is not None:
             app.setStyleSheet(get_stylesheet())
         self._build_shell()
-        self.show_page("overview")
+        self.apply_feature_flags()
+        self.show_page(self._start_page())
         QTimer.singleShot(400, self._probe_connection)
+
+    # ── settings-driven shell ────────────────────────────────────────────
+    FEATURE_PAGES = {
+        "pos": "pos", "wallet": "wallet", "library": "library", "tasks": "tasks",
+        "reports": "reports", "rewards": "rewards", "tournaments": "events",
+        "studio": "studio",
+    }
+
+    def _start_page(self) -> str:
+        try:
+            page = self.data.settings.start_page()
+        except Exception:
+            page = "overview"
+        keys = {spec[0] for spec in PAGE_SPECS}
+        return page if page in keys else "overview"
+
+    def apply_feature_flags(self):
+        """Hide the pages the operator switched off in الإعدادات ← الخصائص."""
+        try:
+            features = self.data.settings.section("features")
+        except Exception:
+            return
+        for feature, page_key in self.FEATURE_PAGES.items():
+            enabled = bool(features.get(feature, True))
+            button = self.sidebar.buttons.get(page_key)
+            if button is not None:
+                button.setVisible(enabled)
+            if not enabled and self.current_key == page_key:
+                self.show_page("overview")
 
     # ── shell ────────────────────────────────────────────────────────────
     def _build_shell(self):
@@ -360,6 +390,8 @@ class MainManager(QMainWindow):
         self.page_subtitle.setText(PAGE_SUBTITLES.get(key, ""))
         if hasattr(page, "on_shown"):
             page.on_shown()
+        if key == "settings":
+            self.apply_feature_flags()
 
     def switch_page(self, index: int):
         """Backwards-compatible index navigation."""

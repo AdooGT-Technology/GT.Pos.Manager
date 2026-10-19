@@ -224,7 +224,8 @@ def get_stylesheet() -> str:
     QPushButton[compact="true"] {{ padding: 4px 10px; min-height: 16px; font-size: 12px; }}
 
     /* ── Inputs ───────────────────────────────────────────────── */
-    QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox, QComboBox {{
+    QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox, QComboBox,
+    QTimeEdit, QDateEdit, QDateTimeEdit {{
         background-color: {surface2};
         color: {text};
         border: 1px solid {border};
@@ -233,13 +234,27 @@ def get_stylesheet() -> str:
         min-height: 20px;
     }}
     QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus,
-    QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {{
+    QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus,
+    QTimeEdit:focus, QDateEdit:focus, QDateTimeEdit:focus {{
         border: 1px solid {accent};
         background-color: {qcolor(accent, 0.06)};
     }}
     QLineEdit:disabled, QComboBox:disabled {{ color: {muted}; }}
     QLineEdit[search="true"] {{ padding-right: 12px; }}
     QComboBox::drop-down {{ border: none; width: 22px; }}
+    QSpinBox::up-button, QDoubleSpinBox::up-button, QTimeEdit::up-button,
+    QDateEdit::up-button, QDateTimeEdit::up-button,
+    QSpinBox::down-button, QDoubleSpinBox::down-button, QTimeEdit::down-button,
+    QDateEdit::down-button, QDateTimeEdit::down-button {{
+        background: transparent; border: none; width: 16px;
+    }}
+    QSpinBox::up-arrow, QDoubleSpinBox::up-arrow, QTimeEdit::up-arrow {{
+        width: 7px; height: 7px;
+    }}
+    QSpinBox::down-arrow, QDoubleSpinBox::down-arrow, QTimeEdit::down-arrow {{
+        width: 7px; height: 7px;
+    }}
+    QTableWidget QLineEdit, QTableWidget QSpinBox {{ border-radius: 4px; padding: 2px 4px; }}
     QComboBox QAbstractItemView {{
         background-color: {surface}; color: {text};
         border: 1px solid {border}; border-radius: 8px;
@@ -309,6 +324,21 @@ def get_stylesheet() -> str:
     QTabBar::tab:selected {{ color: {text}; border-bottom: 2px solid {accent}; }}
     QProgressBar {{ background-color: {surface2}; border: none; border-radius: 3px; text-align: center; }}
     QProgressBar::chunk {{ background-color: {accent}; border-radius: 3px; }}
+    QTreeWidget, QTreeView {{
+        background: transparent; border: none; outline: 0;
+        show-decoration-selected: 0;
+    }}
+    QTreeWidget::item, QTreeView::item {{
+        padding: 7px 6px; border-radius: 7px; min-height: 20px;
+    }}
+    QTreeWidget::item:selected, QTreeView::item:selected {{
+        background-color: {accent_soft}; color: {text};
+    }}
+    QTreeWidget::item:hover, QTreeView::item:hover {{ background-color: {hover}; }}
+    QTreeView::branch {{ background: transparent; border: none; }}
+    QTreeView::branch:selected, QTreeView::branch:hover {{ background: transparent; }}
+    QTreeWidget::branch {{ background: transparent; }}
+    QTreeWidget QHeaderView::section {{ background: transparent; border: none; }}
     QSplitter::handle {{ background: transparent; }}
     QStatusBar {{ background: {surface}; color: {muted}; }}
     """

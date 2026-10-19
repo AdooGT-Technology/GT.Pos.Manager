@@ -18,7 +18,7 @@ BOX = 24.0
 ICON_NAMES = {
     "search", "refresh", "theme", "bell", "power", "sidebar", "grid",
     "monitor", "studio", "users", "cart", "wallet", "gamepad", "terminal",
-    "chart", "gift", "trophy", "settings", "chevron",
+    "chart", "gift", "trophy", "settings", "chevron", "chevron_down",
 }
 
 
@@ -193,6 +193,10 @@ def _draw(name: str, painter: QPainter, color: str):
     elif name == "chevron":
         painter.drawLine(QPointF(9.4, 6.4), QPointF(14.6, 12))
         painter.drawLine(QPointF(14.6, 12), QPointF(9.4, 17.6))
+
+    elif name == "chevron_down":
+        painter.drawLine(QPointF(6.4, 9.4), QPointF(12, 14.6))
+        painter.drawLine(QPointF(12, 14.6), QPointF(17.6, 9.4))
 
     else:  # dot fallback
         painter.setBrush(QColor(color))

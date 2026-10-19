@@ -68,6 +68,16 @@ class Data:
         self._cache.clear()
         return ok
 
+    @property
+    def settings(self):
+        """Settings catalogue (tax, currency, layout…) shared by the pages."""
+        store = getattr(self, "_settings_store", None)
+        if store is None:
+            from Manager.settings_store import SettingsStore
+            store = SettingsStore(self)
+            self._settings_store = store
+        return store
+
     def invalidate(self):
         self._cache.clear()
 

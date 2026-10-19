@@ -381,6 +381,23 @@ STORED_PROCEDURES = {
     """
 }
 
+def _settings_seed():
+    """Insert the settings catalogue blobs so a fresh database opens fully configured."""
+    import json
+    from Manager.settings_schema import sections
+
+    statements = []
+    for _group, section in sections():
+        blob = json.dumps(section.get("defaults") or {}, ensure_ascii=False).replace("'", "''")
+        key = f"settings.{section['key']}"
+        statements.append(
+            "IF NOT EXISTS (SELECT 1 FROM Settings WHERE SettingKey=N'%s') "
+            "INSERT INTO Settings (SettingKey, SettingValue, SettingGroup) "
+            "VALUES (N'%s', N'%s', 'settings')" % (key, key, blob)
+        )
+    return statements
+
+
 DEFAULT_DATA = {
     "Staff": [
         "IF NOT EXISTS (SELECT 1 FROM Staff WHERE Username='admin') INSERT INTO Staff (Username, PasswordHash, FullName, Role, IsActive) VALUES ('admin', 'admin123', N'مدير النظام', N'مدير', 1) ELSE UPDATE Staff SET PasswordHash='admin123', IsActive=1 WHERE Username='admin'"
@@ -429,7 +446,7 @@ DEFAULT_DATA = {
         "IF NOT EXISTS (SELECT 1 FROM GameCategories WHERE CategoryName='Party') INSERT INTO GameCategories (CategoryName, IconEmoji) VALUES ('Party', '🎉')",
         "IF NOT EXISTS (SELECT 1 FROM GameCategories WHERE CategoryName='Other') INSERT INTO GameCategories (CategoryName, IconEmoji) VALUES ('Other', '🎮')"
     ],
-    "Settings": [
+    "Settings": _settings_seed() + [
         "IF NOT EXISTS (SELECT 1 FROM Settings WHERE SettingKey='center_name') INSERT INTO Settings (SettingKey, SettingValue, SettingGroup) VALUES ('center_name', N'Gaming Center Pro', 'general')",
         "IF NOT EXISTS (SELECT 1 FROM Settings WHERE SettingKey='center_description') INSERT INTO Settings (SettingKey, SettingValue, SettingGroup) VALUES ('center_description', N'أحدث أجهزة الكمبيوتر - أسرع إنترنت - أفضل تجربة ألعاب', 'general')",
         "IF NOT EXISTS (SELECT 1 FROM Settings WHERE SettingKey='currency') INSERT INTO Settings (SettingKey, SettingValue, SettingGroup) VALUES ('currency', N'جنيه مصري (EGP)', 'financial')",
