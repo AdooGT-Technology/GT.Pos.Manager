@@ -4,6 +4,8 @@ GT-POS Client Application
 """
 
 import sys
+import threading
+import time
 import os
 import subprocess
 from datetime import datetime
@@ -323,6 +325,7 @@ class ClientApp:
         )
         
         # Callbacks
+        self.network.host_name = ClientConfig.HOST_NAME
         self.network.on_connected = self.on_connected
         self.network.on_disconnected = self.on_disconnected
         self.network.on_command = self.on_command
@@ -346,8 +349,32 @@ class ClientApp:
         self.session_timer = QTimer()
         self.session_timer.timeout.connect(self.update_session)
         
+        # إرسال قياسات الجهاز للسيرفر
+        self.start_telemetry()
+
         # الاتصال بالسيرفر
         self.connect_to_server()
+
+    def start_telemetry(self):
+        """يرسل CPU/GPU/RAM/Disk/Network كل 5 ثوانٍ إلى السيرفر."""
+        try:
+            from telemetry import collect
+        except ImportError:
+            from Client.telemetry import collect
+
+        def loop():
+            while True:
+                try:
+                    if self.network and self.network.connected:
+                        data = collect()
+                        data["hostname"] = ClientConfig.HOST_NAME
+                        data["host"] = ClientConfig.HOST_NAME
+                        self.network._send({"type": "status_update", "data": data})
+                except Exception as error:
+                    print("telemetry:", error)
+                time.sleep(5)
+
+        threading.Thread(target=loop, daemon=True).start()
     
     def connect_to_server(self):
         """الاتصال بالسيرفر"""
@@ -368,6 +395,16 @@ class ClientApp:
     
     def on_command(self, command, data):
         """عند استقبال أمر"""
+        command = str(command or '').lower()
+
+        if command == 'message':
+            self.on_message(data.get('text', ''))
+            return
+
+        if command in ('launch', 'open_game'):
+            self.on_message(f"تشغيل اللعبة: {data.get('game', '')}")
+            return
+
         if command == 'lock':
             self.lock_workstation(data.get('message', 'تم قفل الجهاز'))
         

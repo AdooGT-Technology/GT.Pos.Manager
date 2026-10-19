@@ -1,75 +1,59 @@
+# -*- coding: utf-8 -*-
+"""Trailer player: YouTube (no-cookie) or a local/external video file."""
+
+from __future__ import annotations
+
 import re
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QWidget
+
 from PyQt6.QtCore import Qt, QUrl
-from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QVBoxLayout
+
 from Manager.theme import Colors
+from Manager.ui import button, label
 
 try:
     from PyQt6.QtWebEngineWidgets import QWebEngineView
     HAS_WEBENGINE = True
-except ImportError:
+except ImportError:  # pragma: no cover - optional dependency
     HAS_WEBENGINE = False
+
+
+def embed_url(url: str) -> str:
+    """Turn a watch/share link into an embeddable one."""
+    match = re.search(r"(?:youtu\.be/|v=)([\w-]{6,})", url)
+    if match:
+        return f"https://www.youtube-nocookie.com/embed/{match.group(1)}?rel=0&modestbranding=1"
+    return url
+
 
 class TrailerPlayerDialog(QDialog):
     def __init__(self, game_name: str, trailer_url: str, parent=None):
         super().__init__(parent)
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.game_name = game_name
-        self.trailer_url = trailer_url
-        
-        self.setWindowTitle(f"العرض الترويجي - {game_name}")
-        self.resize(1000, 600)
-        self.setStyleSheet(f"background-color: #0d0e15; color: #ffffff;")
+        self.setWindowTitle(f"العرض — {game_name}")
+        self.resize(960, 580)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
+        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setSpacing(10)
 
-        header = QHBoxLayout()
-        lbl_title = QLabel(f"🎬 {game_name} - Trailer")
-        lbl_title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        lbl_title.setStyleSheet(f"color: {Colors.CYAN};")
+        head = QHBoxLayout()
+        head.addWidget(label(game_name, "Title"))
+        head.addStretch()
+        head.addWidget(button("إغلاق", "ghost", self.accept, compact=True))
+        layout.addLayout(head)
 
-        btn_close = QPushButton("✕ إغلاق")
-        btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_close.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Colors.BG_CARD};
-                color: {Colors.RED};
-                border: 1px solid {Colors.RED}44;
-                border-radius: 6px;
-                padding: 6px 14px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {Colors.RED};
-                color: #ffffff;
-            }}
-        """)
-        btn_close.clicked.connect(self.close)
-
-        header.addWidget(lbl_title)
-        header.addStretch()
-        header.addWidget(btn_close)
-        layout.addLayout(header)
-
-        yt_id = self.extract_youtube_id(trailer_url)
-
-        if HAS_WEBENGINE and yt_id:
-            embed_url = f"https://www.youtube-nocookie.com/embed/{yt_id}?autoplay=1&rel=0&modestbranding=1"
-            web_view = QWebEngineView()
-            web_view.setUrl(QUrl(embed_url))
-            web_view.setStyleSheet("border-radius: 10px; border: 1px solid #222;")
-            layout.addWidget(web_view)
+        if HAS_WEBENGINE:
+            view = QWebEngineView()
+            view.setUrl(QUrl(embed_url(trailer_url)))
+            layout.addWidget(view, 1)
         else:
-            fallback = QLabel(f"تعذر تشغيل الفيديو تلقائياً.\nالرابط: {trailer_url}")
-            fallback.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            fallback.setFont(QFont("Segoe UI", 12))
-            fallback.setStyleSheet(f"color: {Colors.TEXT_MUTED}; border: 1px dashed {Colors.BORDER}; border-radius: 10px;")
-            layout.addWidget(fallback)
-
-    def extract_youtube_id(self, url: str) -> str:
-        if not url:
-            return ""
-        match = re.search(r"(?:v=|\/embed\/|youtu\.be\/|\/v\/)([^\"&?\/\s]{11})", url)
-        return match.group(1) if match else ""
+            message = QLabel(
+                "محرك العرض غير مثبت.\n"
+                "ثبّت PyQt6-WebEngine لعرض الترايلر داخل البرنامج،\n"
+                f"أو افتح الرابط في المتصفح:\n{trailer_url}"
+            )
+            message.setWordWrap(True)
+            message.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            message.setStyleSheet(f"color: {Colors.TEXT_MUTED}; padding: 30px;")
+            layout.addWidget(message, 1)

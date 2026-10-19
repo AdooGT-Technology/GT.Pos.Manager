@@ -43,7 +43,9 @@ class ClientNetwork:
             self._send({
                 'type': 'register',
                 'host_id': self.host_id,
-                'host_number': self.host_number
+                'host_number': self.host_number,
+                'hostname': getattr(self, 'host_name', ''),
+                'ip': getattr(self, 'local_ip', ''),
             })
             
             # بدء الاستقبال
@@ -120,7 +122,7 @@ class ClientNetwork:
                     continue
                 
                 self._handle_message(data)
-            except Exception as e:
+            except Exception:
                 if self.running:
                     self.connected = False
                     if self.on_disconnected:
@@ -155,10 +157,15 @@ class ClientNetwork:
             self.disconnect()
     
     def _heartbeat_loop(self):
-        """حلقة نبضات القلب"""
+        """حلقة نبضات القلب — الرد قد يحمل أوامر من المدير"""
         while self.running and self.connected:
-            time.sleep(20)
-            self._send({'type': 'heartbeat'})
+            time.sleep(8)
+            self._send({
+                'type': 'heartbeat',
+                'hostname': getattr(self, 'host_name', ''),
+                'host_id': self.host_id,
+                'host_number': self.host_number,
+            })
     
     def request_login(self, username, password):
         """طلب تسجيل دخول"""

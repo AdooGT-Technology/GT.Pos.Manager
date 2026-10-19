@@ -1,9 +1,13 @@
 import json
 import time
 import socket
-import psutil
 import platform
 import sys
+
+try:
+    from telemetry import collect
+except ImportError:  # running as a module
+    from Client.telemetry import collect
 
 
 class GamingClientAgent:
@@ -33,19 +37,13 @@ class GamingClientAgent:
             return "00:00:00:00:00:00"
 
     def collect_stats(self):
-        return {
+        payload = collect()
+        payload.update({
             "action": "stats",
             "hostname": self.hostname,
-            "ip": self.get_local_ip(),
-            "mac": self.get_mac(),
-            "cpu": round(psutil.cpu_percent(interval=1), 1),
-            "ram": round(psutil.virtual_memory().percent, 1),
-            "disk": round(psutil.disk_usage('/').percent, 1),
-            "cpu_temp": 0,
-            "gpu_temp": 0,
-            "gpu": 0,
-            "timestamp": time.time()
-        }
+            "timestamp": time.time(),
+        })
+        return payload
 
     def register(self):
         return {
@@ -68,10 +66,10 @@ class GamingClientAgent:
 
     def run(self):
         self.running = True
-        print(f"=== GT-POS Client Agent ===")
+        print("=== GT-POS Client Agent ===")
         print(f"[i] Hostname: {self.hostname}")
         print(f"[i] Server: {self.server_host}:{self.server_port}")
-        print(f"[i] Starting telemetry loop...")
+        print("[i] Starting telemetry loop...")
 
         self.send(self.register())
 
