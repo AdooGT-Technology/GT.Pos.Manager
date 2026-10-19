@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Shared UI kit: small, reusable pieces used by every page."""
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QPainter, QPen
 from PyQt6.QtWidgets import (
     QComboBox, QDialog, QFrame, QHBoxLayout, QLabel, QLineEdit,
@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from Manager.icons import ICON_NAMES, make_icon
 from Manager.theme import Colors, RADIUS, SPACE
 
 
@@ -40,15 +41,31 @@ def label(text: str, role: str = "Body", parent=None) -> QLabel:
     return item
 
 
-def icon_button(glyph: str, tooltip: str = "", on_click=None) -> QPushButton:
-    button = QPushButton(glyph)
-    button.setProperty("variant", "icon")
-    button.setCursor(Qt.CursorShape.PointingHandCursor)
-    if tooltip:
-        button.setToolTip(tooltip)
-    if on_click:
-        button.clicked.connect(on_click)
-    return button
+class IconButton(QPushButton):
+    """Vector icon button; redraws itself when the theme changes."""
+
+    def __init__(self, name: str, tooltip: str = "", on_click=None,
+                 size: int = 38, icon_size: int = 20, parent=None):
+        super().__init__(parent)
+        self.name = name
+        self.icon_size = icon_size
+        self.setProperty("variant", "icon")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedSize(size, size)
+        self.setIconSize(QSize(icon_size, icon_size))
+        if tooltip:
+            self.setToolTip(tooltip)
+        if on_click:
+            self.clicked.connect(on_click)
+        self.refresh_theme()
+
+    def refresh_theme(self):
+        self.setIcon(make_icon(self.name, Colors.TEXT_PRIMARY, self.icon_size))
+
+
+def icon_button(glyph: str, tooltip: str = "", on_click=None,
+                size: int = 38, icon_size: int = 20) -> IconButton:
+    return IconButton(glyph, tooltip, on_click, size=size, icon_size=icon_size)
 
 
 def button(text: str, variant: str = "quiet", on_click=None, compact=False) -> QPushButton:
@@ -446,7 +463,12 @@ class CommandPalette(QDialog):
         ]
         self.list.clear()
         for icon, title, hint, _ in self.filtered:
-            entry = QListWidgetItem(f"{icon}   {title}    ·  {hint}")
+            if icon in ICON_NAMES:
+                entry = QListWidgetItem(f"   {title}    ·  {hint}")
+                entry.setIcon(make_icon(icon, Colors.TEXT_MUTED, 18))
+                entry.setSizeHint(QSize(0, 38))
+            else:
+                entry = QListWidgetItem(f"{icon}   {title}    ·  {hint}")
             self.list.addItem(entry)
         if self.filtered:
             self.list.setCurrentRow(0)

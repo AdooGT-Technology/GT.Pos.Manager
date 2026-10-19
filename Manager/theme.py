@@ -209,9 +209,8 @@ def get_stylesheet() -> str:
     QPushButton[variant="success"] {{ color: {success}; border-color: {qcolor(success, 0.4)}; background: transparent; }}
     QPushButton[variant="success"]:hover {{ background-color: {qcolor(success, 0.12)}; border-color: {success}; }}
     QPushButton[variant="icon"] {{
-        padding: 0; min-width: 34px; min-height: 34px; max-width: 34px; max-height: 34px;
-        border-radius: 9px; background-color: transparent; border: 1px solid transparent;
-        font-size: 15px;
+        padding: 0; border-radius: 10px;
+        background-color: transparent; border: 1px solid transparent;
     }}
     QPushButton[variant="icon"]:hover {{ background-color: {hover}; border-color: {border}; }}
     QPushButton[variant="nav"] {{

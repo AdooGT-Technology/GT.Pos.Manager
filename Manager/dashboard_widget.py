@@ -200,9 +200,15 @@ class DashboardWidget(QWidget):
             self.detail.body.addWidget(stat)
         self.detail.tail = label("—", "Caption")
         self.detail.body.addWidget(self.detail.tail)
-        self.detail.body.addWidget(
+        detail_actions = QHBoxLayout()
+        detail_actions.setSpacing(6)
+        detail_actions.addWidget(
             button("فتح الاستوديو", "quiet", self._open_studio, compact=True)
         )
+        detail_actions.addWidget(
+            button("مراقبة العتاد", "accent", self._open_hardware, compact=True)
+        )
+        self.detail.body.addLayout(detail_actions)
         side.addWidget(self.detail)
 
         actions = Card()
@@ -333,6 +339,13 @@ class DashboardWidget(QWidget):
 
     def _open_devices(self):
         self._go("devices")
+
+    def _open_hardware(self):
+        from Manager.hardware_overlay import HardwareDialog
+        host = self._current_focus()
+        if host is None:
+            return
+        HardwareDialog(self.data, host, self).exec()
 
     def _open_studio(self):
         self._go("studio")

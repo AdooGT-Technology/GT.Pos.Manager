@@ -140,6 +140,9 @@ class ClientStudioWidget(QWidget):
         self.status_pill = Pill("—", "muted")
         toolbar.addWidget(self.status_pill)
         toolbar.addStretch()
+        toolbar.addWidget(
+            button("مراقبة العتاد", "accent", self._open_hardware, compact=True)
+        )
         left.addLayout(toolbar)
 
         self.preview = PreviewScreen()
@@ -222,6 +225,13 @@ class ClientStudioWidget(QWidget):
                 self.device_combo.setCurrentIndex(index)
         self.device_combo.blockSignals(False)
         self._load_selected()
+
+    def _open_hardware(self):
+        from Manager.hardware_overlay import HardwareDialog
+        host = self._selected()
+        if host is None:
+            return
+        HardwareDialog(self.data, host, self).exec()
 
     @staticmethod
     def _busy(host: dict) -> bool:

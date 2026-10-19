@@ -7,16 +7,18 @@
 > راجع [`RELEASING.md`](../RELEASING.md) للخطوات الكاملة.
 
 ## أحدث إصدار
-**v3.6.0** — [صفحة الإصدار](https://github.com/AdooGT-Technology/GT.Pos.Manager/releases/tag/v3.6.0) · [تنزيل مباشر](https://github.com/AdooGT-Technology/GT.Pos.Manager/raw/v3.6.0/releases/GT.Pos.Manager-3.6.0.zip)
+**v3.6.1** — [صفحة الإصدار](https://github.com/AdooGT-Technology/GT.Pos.Manager/releases/tag/v3.6.1) · [تنزيل مباشر](https://github.com/AdooGT-Technology/GT.Pos.Manager/raw/v3.6.1/releases/GT.Pos.Manager-3.6.1.zip)
 
 ## كل الحزم
 
 | الإصدار | الملف | الحجم | SHA256 |
 |---|---|---|---|
+| 3.6.1 | `GT.Pos.Manager-3.6.1.zip` | 174 KB | `c9bf5b1c1afda9f9684530195362b830581c98710151072cb68b3c20e9b8fcfb` |
 | 3.6.0 | `GT.Pos.Manager-3.6.0.zip` | 163 KB | `41f5dfe053c9060a51e45c074d82cd3bbdec8a9e0e04d71d5d3a9e1b735636b3` |
 | 3.5.0 | `GT.Pos.Manager-3.5.0.zip` | 131 KB | `b1df382bdda7fc8c0cd19b8ff56a50b9c8bd2f1291f6c5fc63863245cae7c0e5` |
 
 ## تنزيل
+- **v3.6.1**: [صفحة الإصدار](https://github.com/AdooGT-Technology/GT.Pos.Manager/releases/tag/v3.6.1) · [تنزيل مباشر](https://github.com/AdooGT-Technology/GT.Pos.Manager/raw/v3.6.1/releases/GT.Pos.Manager-3.6.1.zip)
 - **v3.6.0**: [صفحة الإصدار](https://github.com/AdooGT-Technology/GT.Pos.Manager/releases/tag/v3.6.0) · [تنزيل مباشر](https://github.com/AdooGT-Technology/GT.Pos.Manager/raw/v3.6.0/releases/GT.Pos.Manager-3.6.0.zip)
 - **v3.5.0**: [صفحة الإصدار](https://github.com/AdooGT-Technology/GT.Pos.Manager/releases/tag/v3.5.0) · [تنزيل مباشر](https://github.com/AdooGT-Technology/GT.Pos.Manager/raw/v3.5.0/releases/GT.Pos.Manager-3.5.0.zip)
 

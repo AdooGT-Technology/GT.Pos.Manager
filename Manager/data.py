@@ -87,8 +87,10 @@ class Data:
     def hosts(self, ttl: float = 3.0):
         rows = self.query(
             "SELECT HostId, HostName, HostNumber, IPAddress, MACAddress, Status,"
-            " CPU_Usage, GPU_Usage, RAM_Usage, RAM_Total, Disk_Usage, CPU_Temp,"
-            " GPU_Temp, GPU_Name, CurrentUser FROM Hosts WHERE IsActive = 1"
+            " CPU_Usage, GPU_Usage, RAM_Usage, RAM_Total, RAM_Speed, Disk_Usage,"
+            " Disk_Total, Disk_Health, CPU_Temp, GPU_Temp, GPU_Name, VRAM_Used,"
+            " VRAM_Total, Net_Name, Net_Speed, Net_Upload, Net_Download, Net_Total,"
+            " UptimeMinutes, CurrentUser FROM Hosts WHERE IsActive = 1"
             " ORDER BY HostNumber",
             ttl=ttl, key="hosts",
         )
@@ -104,6 +106,11 @@ class Data:
         rows = []
         for index in range(1, 19):
             busy = states[(index - 1) % len(states)] == "مشغول"
+            vram_total = 12 if index % 3 else 8
+            gpu_use = self._rng.randint(40, 88) if busy else self._rng.randint(0, 4)
+            net_speed = 1000 if index % 4 else 100
+            upload = round(self._rng.uniform(0.4, 9.5) if busy else 0.1, 2)
+            download = round(self._rng.uniform(2.0, 48.0) if busy else 0.4, 2)
             rows.append({
                 "HostId": index,
                 "HostName": f"PC-{index:02d}",
@@ -113,13 +120,24 @@ class Data:
                 "Status": "مشغول" if busy else "متاح",
                 "CurrentUser": names[(index - 1) % len(names)] if busy else "",
                 "CPU_Usage": self._rng.randint(18, 62) if busy else self._rng.randint(2, 9),
-                "GPU_Usage": self._rng.randint(40, 88) if busy else self._rng.randint(0, 4),
+                "GPU_Usage": gpu_use,
                 "RAM_Usage": self._rng.randint(40, 78) if busy else self._rng.randint(18, 30),
                 "RAM_Total": 32,
+                "RAM_Speed": 3200,
                 "Disk_Usage": self._rng.randint(42, 66),
+                "Disk_Total": 1000,
+                "Disk_Health": "HEALTHY",
                 "CPU_Temp": self._rng.randint(48, 71) if busy else self._rng.randint(35, 44),
                 "GPU_Temp": self._rng.randint(55, 79) if busy else self._rng.randint(33, 42),
                 "GPU_Name": gpus[index % len(gpus)],
+                "VRAM_Used": round(vram_total * gpu_use / 100 * 0.9, 1),
+                "VRAM_Total": vram_total,
+                "Net_Name": "Ethernet",
+                "Net_Speed": 0 if index == 12 else net_speed,
+                "Net_Upload": upload,
+                "Net_Download": download,
+                "Net_Total": round(upload + download, 2),
+                "UptimeMinutes": self._rng.randint(40, 380) if busy else 0,
             })
         self._demo_hosts = rows
         return rows

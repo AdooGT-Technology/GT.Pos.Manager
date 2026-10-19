@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import sys
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QApplication, QFrame, QHBoxLayout, QLabel, QMainWindow, QMenu,
@@ -13,7 +13,8 @@ from PyQt6.QtWidgets import (
 )
 
 from Manager.data import Data
-from Manager.theme import THEMES, get_stylesheet, set_theme, theme_key
+from Manager.theme import THEMES, Colors, get_stylesheet, set_theme, theme_key
+from Manager.icons import make_icon, make_pixmap
 from Manager.ui import CommandPalette, Pill, icon_button, label, repolish
 from Server.database import DatabaseManager
 
@@ -23,20 +24,20 @@ except Exception:  # pragma: no cover
     APP_VERSION = "3.6.0"
 
 
-# (key, glyph, title, group, factory-import)
+# (key, icon, title, group, factory-import)
 PAGE_SPECS = [
-    ("overview", "◈", "نظرة عامة", "التشغيل", "Manager.dashboard_widget:DashboardWidget"),
-    ("devices", "▤", "الأجهزة", "التشغيل", "Manager.devices_widget:DevicesWidget"),
-    ("studio", "▣", "استوديو العميل", "التشغيل", "Manager.client_studio:ClientStudioWidget"),
-    ("members", "☰", "الأعضاء", "العملاء", "Manager.users_widget:UsersWidget"),
-    ("pos", "▦", "نقطة البيع", "العملاء", "Manager.pos_widget:POSWidget"),
-    ("wallet", "◉", "المحفظة", "العملاء", "Manager.wallet_widget:WalletWidget"),
-    ("library", "▧", "مكتبة الألعاب", "المحتوى", "Manager.games_widget:GamesWidget"),
-    ("tasks", "◇", "المهام", "المحتوى", "Manager.tasks_widget:TasksWidget"),
-    ("reports", "◫", "التقارير", "الإدارة", "Manager.reports_widget:ReportsWidget"),
-    ("rewards", "✦", "المكافآت", "الإدارة", "Manager.rewards_widget:RewardsWidget"),
-    ("events", "◎", "البطولات", "الإدارة", "Manager.tournaments_widget:TournamentsWidget"),
-    ("settings", "⚙", "الإعدادات", "الإدارة", "Manager.settings_widget:SettingsWidget"),
+    ("overview", "grid", "نظرة عامة", "التشغيل", "Manager.dashboard_widget:DashboardWidget"),
+    ("devices", "monitor", "الأجهزة", "التشغيل", "Manager.devices_widget:DevicesWidget"),
+    ("studio", "studio", "استوديو العميل", "التشغيل", "Manager.client_studio:ClientStudioWidget"),
+    ("members", "users", "الأعضاء", "العملاء", "Manager.users_widget:UsersWidget"),
+    ("pos", "cart", "نقطة البيع", "العملاء", "Manager.pos_widget:POSWidget"),
+    ("wallet", "wallet", "المحفظة", "العملاء", "Manager.wallet_widget:WalletWidget"),
+    ("library", "gamepad", "مكتبة الألعاب", "المحتوى", "Manager.games_widget:GamesWidget"),
+    ("tasks", "terminal", "المهام", "المحتوى", "Manager.tasks_widget:TasksWidget"),
+    ("reports", "chart", "التقارير", "الإدارة", "Manager.reports_widget:ReportsWidget"),
+    ("rewards", "gift", "المكافآت", "الإدارة", "Manager.rewards_widget:RewardsWidget"),
+    ("events", "trophy", "البطولات", "الإدارة", "Manager.tournaments_widget:TournamentsWidget"),
+    ("settings", "settings", "الإعدادات", "الإدارة", "Manager.settings_widget:SettingsWidget"),
 ]
 
 PAGE_SUBTITLES = {
@@ -62,32 +63,63 @@ def _load(factory_path: str, *args):
 
 
 class NavButton(QPushButton):
-    def __init__(self, glyph: str, text: str, parent=None):
+    """Sidebar row: a vector icon and a label inside a clickable button.
+
+    Qt draws QPushButton icons on the wrong side in RTL and shrinks them, so the
+    row is laid out manually with two labels nested in the button.
+    """
+
+    def __init__(self, icon: str, text: str, parent=None):
         super().__init__(parent)
-        self.glyph = glyph
+        self.icon_name = icon
         self.title = text
-        self.setProperty("nav", "true")
+        self.collapsed = False
+        self.setProperty("variant", "nav")
         self.setProperty("active", "false")
         self.setCheckable(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setFixedHeight(38)
+        self.setFixedHeight(44)
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.setStyleSheet(
-            "QPushButton { text-align: right; padding: 0 12px; font-size: 13px; }"
+
+        row = QHBoxLayout(self)
+        row.setContentsMargins(0, 0, 14, 0)
+        row.setSpacing(10)
+
+        self.icon_label = QLabel(self)
+        self.icon_label.setFixedSize(24, 24)
+        self.icon_label.setStyleSheet("background: transparent; border: none;")
+        self.text_label = QLabel(text, self)
+        self.text_label.setStyleSheet("background: transparent; border: none; font-size: 14px;")
+        for widget in (self.icon_label, self.text_label):
+            widget.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+
+        row.addStretch(0)
+        row.addWidget(self.icon_label)
+        row.addWidget(self.text_label)
+        row.addStretch(1)
+        self.refresh_theme()
+
+    def refresh_theme(self):
+        color = Colors.CYAN if self.property("active") == "true" else Colors.TEXT_PRIMARY
+        self.icon_label.setPixmap(make_pixmap(self.icon_name, 22, color))
+        self.text_label.setStyleSheet(
+            "background: transparent; border: none; font-size: 14px; color: %s;" % color
         )
-        self.setText(f"{glyph}   {text}")
 
     def set_active(self, active: bool):
         self.setChecked(active)
         self.setProperty("active", "true" if active else "false")
         repolish(self)
+        self.refresh_theme()
 
     def set_collapsed(self, collapsed: bool):
-        self.setText(self.glyph if collapsed else f"{self.glyph}   {self.title}")
-        self.setStyleSheet(
-            "QPushButton { %s font-size: 15px; padding: 0; }"
-            % ("text-align: center;" if collapsed else "text-align: right; padding: 0 12px;")
-        )
+        self.collapsed = collapsed
+        self.text_label.setVisible(not collapsed)
+        row = self.layout()
+        row.setContentsMargins(0, 0, 0 if collapsed else 14, 0)
+        row.setSpacing(0 if collapsed else 10)
+        row.setStretch(0, 1 if collapsed else 0)
+        row.setStretch(3, 1)
 
 
 class Sidebar(QFrame):
@@ -135,11 +167,13 @@ class Sidebar(QFrame):
         self.nav_layout.setSpacing(2)
 
         current_group = None
+        self.sections = []
         for key, glyph, title, group, _ in PAGE_SPECS:
             if group != current_group:
                 current_group = group
                 section = label(group, "Section")
                 section.setContentsMargins(10, 12, 10, 4)
+                self.sections.append(section)
                 self.nav_layout.addWidget(section)
             button = NavButton(glyph, title)
             button.clicked.connect(lambda _checked, k=key: self.navigate.emit(k))
@@ -160,7 +194,9 @@ class Sidebar(QFrame):
         root.addWidget(self.user_button)
 
     def set_user(self, name: str):
-        self.user_button.setText(f"◍   {name}\n      مدير النظام")
+        self.user_button.setText(f"  {name}\n      مدير النظام")
+        self.user_button.setIcon(make_icon("users", Colors.TEXT_MUTED, 20))
+        self.user_button.setIconSize(QSize(20, 20))
 
     def set_active(self, key: str):
         for page_key, button in self.buttons.items():
@@ -180,6 +216,8 @@ class Sidebar(QFrame):
         self.name_label.setVisible(not self.collapsed)
         self.version_label.setVisible(not self.collapsed)
         self.status_pill.setVisible(not self.collapsed)
+        for section in getattr(self, "sections", []):
+            section.setVisible(not self.collapsed)
         for button in self.buttons.values():
             button.set_collapsed(self.collapsed)
 
@@ -258,22 +296,29 @@ class MainManager(QMainWindow):
         layout.addLayout(title_col)
         layout.addStretch()
 
-        search = QPushButton("بحث   Ctrl K")
+        search = QPushButton("  بحث      Ctrl K")
         search.setCursor(Qt.CursorShape.PointingHandCursor)
         search.setProperty("variant", "quiet")
-        search.setFixedWidth(168)
+        search.setFixedWidth(188)
+        search.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        search.setIcon(make_icon("search", Colors.TEXT_MUTED, 18))
+        search.setIconSize(QSize(18, 18))
         search.setStyleSheet(
-            "QPushButton { text-align: center; padding: 0 8px; color: %s; font-size: 12px; }" % "#8FA0AE"
+            "QPushButton { text-align: right; padding: 0 10px; color: %s; font-size: 12px; }" % "#8FA0AE"
         )
         search.clicked.connect(self.open_palette)
         layout.addWidget(search)
 
-        layout.addWidget(icon_button("↻", "تحديث الصفحة (F5)", self.refresh_current))
-        self.theme_button = icon_button("◐", "المظهر", self._open_theme_menu)
+        layout.addWidget(icon_button("refresh", "تحديث الصفحة (F5)", self.refresh_current,
+                                     size=40, icon_size=22))
+        self.theme_button = icon_button("theme", "المظهر", self._open_theme_menu,
+                                        size=40, icon_size=22)
         layout.addWidget(self.theme_button)
-        self.bell_button = icon_button("◔", "آخر الأحداث", self._open_activity_menu)
+        self.bell_button = icon_button("bell", "آخر الأحداث", self._open_activity_menu,
+                                       size=40, icon_size=22)
         layout.addWidget(self.bell_button)
-        layout.addWidget(icon_button("⎋", "تسجيل الخروج", self._logout))
+        layout.addWidget(icon_button("power", "تسجيل الخروج", self._logout,
+                                     size=40, icon_size=22))
 
         avatar = QPushButton(self.username[:1])
         avatar.setFixedSize(34, 34)
@@ -331,12 +376,12 @@ class MainManager(QMainWindow):
         self._toast("تم التحديث")
 
     def open_palette(self):
-        items = [("◈", spec[2], spec[3], lambda k=spec[0]: self.show_page(k))
+        items = [(spec[1], spec[2], spec[3], lambda k=spec[0]: self.show_page(k))
                  for spec in PAGE_SPECS]
         items += [
-            ("◐", "تغيير المظهر", "الشكل", self._open_theme_menu),
-            ("↻", "تحديث الصفحة", "F5", self.refresh_current),
-            ("⎋", "تسجيل الخروج", "إنهاء الجلسة", self._logout),
+            ("theme", "تغيير المظهر", "الشكل", self._open_theme_menu),
+            ("refresh", "تحديث الصفحة", "F5", self.refresh_current),
+            ("power", "تسجيل الخروج", "إنهاء الجلسة", self._logout),
         ]
         CommandPalette(items, self).exec()
 

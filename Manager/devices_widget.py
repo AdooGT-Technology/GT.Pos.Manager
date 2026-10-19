@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
 )
 
 from Manager.commands import CommandClient, describe
+from Manager.hardware_overlay import HardwareDialog
 from Manager.ui import (
     Bar, Card, EmptyState, Pill, SearchInput, Segmented, Toast,
     button, label,
@@ -28,11 +29,13 @@ def is_busy(host: dict) -> bool:
 class DeviceCard(Card):
     """One machine with its live numbers and the four usual controls."""
 
-    def __init__(self, host: dict, on_action=None, on_open=None, parent=None):
+    def __init__(self, host: dict, on_action=None, on_open=None,
+                 on_hardware=None, parent=None):
         super().__init__(parent, padding=14, spacing=8)
         self.host = host
         self.on_action = on_action
         self.on_open = on_open
+        self.on_hardware = on_hardware
         self.setMinimumSize(236, 196)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -65,7 +68,16 @@ class DeviceCard(Card):
             actions.addWidget(btn)
         actions.addStretch()
         self.body.addLayout(actions)
+
+        self.hardware_btn = button(
+            "مراقبة العتاد", "quiet", lambda: self._hardware(), compact=True
+        )
+        self.body.addWidget(self.hardware_btn)
         self.set_host(host)
+
+    def _hardware(self):
+        if self.on_hardware:
+            self.on_hardware(self.host)
 
     def _meter(self, name: str):
         row = QWidget()
@@ -106,8 +118,11 @@ class DeviceCard(Card):
         self.ram["bar"].set_value(ram)
         self.ram["value"].setText(f"{ram:.0f}%")
         temp = float(host.get("GPU_Temp") or 0)
+        net = int(float(host.get("Net_Speed") or 0))
+        net_text = "شبكة مفقودة" if net <= 0 else f"شبكة {net}"
         self.meta.setText(
-            f"{host.get('GPU_Name') or '—'}  ·  {temp:.0f}°  ·  {host.get('IPAddress') or '—'}"
+            f"{host.get('GPU_Name') or '—'}  ·  {temp:.0f}°  ·  {net_text}"
+            f"  ·  {host.get('IPAddress') or '—'}"
         )
         self.btn_lock.setEnabled(True)
         self.btn_unlock.setEnabled(busy)
@@ -150,6 +165,7 @@ class DevicesWidget(QWidget):
 
         toolbar.addWidget(button("تشغيل الأجهزة النائمة", "quiet", self._wake_all, compact=True))
         toolbar.addWidget(button("فتح كل الشاشات", "quiet", self._unlock_all, compact=True))
+        toolbar.addWidget(button("مراقبة العتاد", "accent", self._open_hardware_monitor, compact=True))
         toolbar.addWidget(button("تحديث", "ghost", self.reload, compact=True))
         root.addLayout(toolbar)
 
@@ -231,7 +247,10 @@ class DevicesWidget(QWidget):
             host_id = host.get("HostId")
             card = self.cards.get(host_id)
             if card is None:
-                card = DeviceCard(host, on_action=self._run_action, on_open=self._open_studio)
+                card = DeviceCard(
+                    host, on_action=self._run_action, on_open=self._open_studio,
+                    on_hardware=self._open_hardware_monitor,
+                )
                 self.cards[host_id] = card
             else:
                 card.set_host(host)
@@ -275,6 +294,15 @@ class DevicesWidget(QWidget):
             self.reload()
         else:
             Toast(self, f"لم يُنفَّذ: {message}", "warning", 3200)
+
+    def _open_hardware_monitor(self, host=None):
+        if host is None:
+            hosts = self._hosts() or self.data.hosts()
+            if not hosts:
+                Toast(self, "لا يوجد جهاز لعرض قياساته", "warning")
+                return
+            host = hosts[0]
+        HardwareDialog(self.data, host, self).exec()
 
     def _wake_all(self):
         sleeping = [h for h in self.data.hosts() if not is_busy(h)]

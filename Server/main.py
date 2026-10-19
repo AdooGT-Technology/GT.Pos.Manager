@@ -230,13 +230,22 @@ class POSServer:
             return
         self.db.execute_query(
             """UPDATE Hosts SET CPU_Usage=?, GPU_Usage=?, RAM_Usage=?, Disk_Usage=?,
-                   CPU_Temp=?, GPU_Temp=?, GPU_Name=?
+                   CPU_Temp=?, GPU_Temp=?, GPU_Name=?, VRAM_Used=?, VRAM_Total=?,
+                   RAM_Total=?, RAM_Speed=?, Disk_Total=?, Disk_Health=?, Net_Name=?,
+                   Net_Speed=?, Net_Upload=?, Net_Download=?, Net_Total=?,
+                   UptimeMinutes=?, LastSeen=GETDATE()
                WHERE HostName=? OR IPAddress=?""",
             (
                 payload.get("cpu", 0), payload.get("gpu", 0),
                 payload.get("ram", 0), payload.get("disk", 0),
                 payload.get("cpu_temp", 0), payload.get("gpu_temp", 0),
-                payload.get("gpu_name", ""),
+                payload.get("gpu_name", ""), payload.get("vram_used", 0),
+                payload.get("vram_total", 0), payload.get("ram_total", 0),
+                payload.get("ram_speed", 0), payload.get("disk_total", 0),
+                payload.get("disk_health", ""), payload.get("net_name", ""),
+                payload.get("net_speed", 0), payload.get("net_upload", 0),
+                payload.get("net_download", 0), payload.get("net_total", 0),
+                int(payload.get("uptime_minutes") or payload.get("uptime") or 0) // 60,
                 hostname, payload.get("ip", hostname),
             ),
             fetch=False,
