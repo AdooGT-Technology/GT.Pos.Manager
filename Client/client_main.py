@@ -323,6 +323,7 @@ class ClientApp:
         )
         
         # Callbacks
+        self.network.host_name = ClientConfig.HOST_NAME
         self.network.on_connected = self.on_connected
         self.network.on_disconnected = self.on_disconnected
         self.network.on_command = self.on_command

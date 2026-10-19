@@ -1,9 +1,9 @@
 APP_NAME = "GT-POS Gizmo Manager"
 APP_TITLE = "Gaming Center Pro"
 APP_SUBTITLE = "Admin Panel"
-APP_VERSION = "3.5.0"
-APP_CODENAME = "GitHub Release & Core Management"
+APP_VERSION = "3.6.0"
+APP_CODENAME = "Calm Interface"
 VERSION = APP_VERSION
 DB_MIN_VERSION = "1.0.0"
 AUTHOR = "GT POS Team"
-RELEASE_DATE = "2025-07-13"
+RELEASE_DATE = "2026-10-19"

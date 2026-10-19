@@ -1,167 +1,238 @@
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QScrollArea, QLineEdit, QComboBox, QCheckBox,
-    QGridLayout, QMessageBox
-)
+# -*- coding: utf-8 -*-
+"""Settings: appearance, center details, connection and data — saved for real."""
+
+from __future__ import annotations
+
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
-from Manager.theme import Colors, THEMES
+from PyQt6.QtWidgets import (
+    QApplication, QFrame, QHBoxLayout, QLineEdit, QScrollArea, QVBoxLayout, QWidget,
+)
 
-class ToggleSwitch(QWidget):
-    def __init__(self, checked=False, parent=None):
+from Manager.commands import CommandClient, server_address
+from Manager.theme import THEMES, get_stylesheet, set_theme, theme_key
+from Manager.ui import (
+    Card, Pill, Segmented, Toast, ToggleSwitch, button, hline, label,
+)
+from Server.config import DB_NAME, DB_SERVER
+
+try:
+    from version import APP_VERSION
+except Exception:  # pragma: no cover
+    APP_VERSION = "3.6.0"
+
+
+class Row(QWidget):
+    def __init__(self, title: str, hint: str, widget: QWidget, parent=None):
         super().__init__(parent)
-        self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.checked = checked
-        self.setFixedSize(48, 24)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 6, 0, 6)
+        layout.setSpacing(12)
+        text = QVBoxLayout()
+        text.setSpacing(2)
+        text.addWidget(label(title, "Body"))
+        if hint:
+            text.addWidget(label(hint, "Caption"))
+        layout.addLayout(text, 1)
+        widget.setMinimumWidth(220)
+        widget.setMaximumWidth(280)
+        layout.addWidget(widget)
 
-    def mousePressEvent(self, event):
-        self.checked = not self.checked
-        self.update()
-
-    def paintEvent(self, event):
-        from PyQt6.QtGui import QPainter, QBrush, QColor
-        p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
-        bg_color = QColor(Colors.CYAN) if self.checked else QColor(Colors.BG_CARD_LIGHT)
-        p.setBrush(QBrush(bg_color))
-        p.setPen(Qt.PenStyle.NoPen)
-        p.drawRoundedRect(0, 0, 48, 24, 12, 12)
-        
-        knob_x = 26 if self.checked else 2
-        p.setBrush(QBrush(QColor("#ffffff")))
-        p.drawEllipse(knob_x, 2, 20, 20)
-
-class SettingsCard(QFrame):
-    def __init__(self, title: str, icon: str = "⚙️"):
-        super().__init__()
-        self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.setObjectName("SettingsCard")
-        self.setStyleSheet(f"""
-            QFrame#SettingsCard {{
-                background-color: {Colors.BG_CARD};
-                border: 1px solid {Colors.BORDER};
-                border-radius: 12px;
-            }}
-        """)
-        
-        self.card_layout = QVBoxLayout(self)
-        self.card_layout.setContentsMargins(18, 16, 18, 16)
-        self.card_layout.setSpacing(14)
-
-        header = QHBoxLayout()
-        header.setSpacing(10)
-        
-        lbl_icon = QLabel(icon)
-        lbl_icon.setFont(QFont("Segoe UI Emoji", 14))
-        
-        lbl_title = QLabel(title)
-        lbl_title.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        lbl_title.setStyleSheet(f"color: {Colors.CYAN};")
-
-        header.addWidget(lbl_icon)
-        header.addWidget(lbl_title)
-        header.addStretch()
-        
-        self.card_layout.addLayout(header)
-
-        divider = QFrame()
-        divider.setFrameShape(QFrame.Shape.HLine)
-        divider.setStyleSheet(f"background-color: {Colors.BORDER}; max-height: 1px;")
-        self.card_layout.addWidget(divider)
-
-    def add_row(self, label_text: str, widget: QWidget):
-        row = QHBoxLayout()
-        row.setSpacing(12)
-        
-        lbl = QLabel(label_text)
-        lbl.setFont(QFont("Segoe UI", 10))
-        lbl.setStyleSheet(f"color: {Colors.TEXT_PRIMARY};")
-
-        row.addWidget(lbl)
-        row.addStretch()
-        row.addWidget(widget)
-        
-        self.card_layout.addLayout(row)
 
 class SettingsWidget(QWidget):
-    def __init__(self, db=None, on_theme_change_callback=None):
-        super().__init__()
-        self.db = db
-        self.on_theme_change = on_theme_change_callback
+    def __init__(self, data, parent=None):
+        super().__init__(parent)
+        self.data = data
+        self._build()
+        self.reload()
+
+    def set_navigator(self, _navigate):
+        pass
+
+    def _build(self):
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.setup_ui()
-        
-    def setup_ui(self):
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(16)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(24, 20, 24, 20)
+        root.setSpacing(12)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet("QScrollArea { background: transparent; }")
+        host = QWidget()
+        column = QVBoxLayout(host)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(12)
+        column.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        container = QWidget()
-        container_layout = QVBoxLayout(container)
-        container_layout.setContentsMargins(0, 0, 0, 0)
-        container_layout.setSpacing(16)
+        # Appearance
+        appearance = Card(padding=16, spacing=10)
+        appearance.body.addWidget(label("المظهر", "Title"))
+        appearance.body.addWidget(label(
+            "الألوان تُطبَّق فوراً على كل الصفحات دون إعادة تشغيل.", "Muted"
+        ))
+        self.theme_control = Segmented(
+            [(key, data_["name"]) for key, data_ in THEMES.items()], theme_key()
+        )
+        for btn in self.theme_control.buttons.values():
+            btn.setMinimumHeight(32)
+            btn.setStyleSheet("padding: 6px 16px;")
+        self.theme_control.changed.connect(self._change_theme)
+        appearance.body.addWidget(self.theme_control, alignment=Qt.AlignmentFlag.AlignRight)
+        self.theme_hint = label("", "Caption")
+        appearance.body.addWidget(self.theme_hint)
+        column.addWidget(appearance)
 
-        card_theme = SettingsCard("مظهر الواجهة والتصميم", "🎨")
-        self.combo_theme = QComboBox()
-        for k, v in THEMES.items():
-            self.combo_theme.addItem(v["name"], k)
-        self.combo_theme.setStyleSheet(f"background-color: {Colors.BG_CARD_LIGHT}; color: {Colors.TEXT_PRIMARY}; border: 1px solid {Colors.BORDER}; padding: 6px; border-radius: 6px;")
-        self.combo_theme.currentIndexChanged.connect(self.change_theme)
-        card_theme.add_row("اختر المظهر المفضل للوحة التحكم:", self.combo_theme)
-        container_layout.addWidget(card_theme)
+        # Center profile
+        profile = Card(padding=16, spacing=10)
+        profile.body.addWidget(label("بيانات المركز", "Title"))
+        self.center_name = QLineEdit()
+        self.center_phone = QLineEdit()
+        self.center_address = QLineEdit()
+        profile.body.addWidget(Row("اسم المركز", "يظهر في الفواتير", self.center_name))
+        profile.body.addWidget(Row("الجوال", "", self.center_phone))
+        profile.body.addWidget(Row("العنوان", "", self.center_address))
+        save_row = QHBoxLayout()
+        save_row.addStretch()
+        save_row.addWidget(button("حفظ البيانات", "primary", self._save_profile))
+        profile.body.addLayout(save_row)
+        column.addWidget(profile)
 
-        card_center = SettingsCard("معلومات المركز والفرع", "🏬")
-        txt_center_name = QLineEdit("Gaming Center Pro")
-        txt_center_name.setFixedWidth(220)
-        txt_center_name.setStyleSheet(f"background-color: {Colors.BG_CARD_LIGHT}; color: {Colors.TEXT_PRIMARY}; border: 1px solid {Colors.BORDER}; padding: 6px; border-radius: 6px;")
-        card_center.add_row("اسم المركز التجاري:", txt_center_name)
-        container_layout.addWidget(card_center)
+        # Connection
+        connection = Card(padding=16, spacing=10)
+        connection.body.addWidget(label("الاتصال", "Title"))
+        host_value, port_value = server_address()
+        self.host_input = QLineEdit(host_value)
+        self.port_input = QLineEdit(str(port_value))
+        self.port_input.setFixedWidth(110)
+        connection.body.addWidget(Row("عنوان السيرفر", "عنوان جهاز السيرفر", self.host_input))
+        connection.body.addWidget(Row("المنفذ", "الافتراضي 54321", self.port_input))
+        self.db_state = Pill("—", "muted")
+        connection.body.addWidget(Row(
+            "قاعدة البيانات", f"{DB_SERVER} · {DB_NAME}", self.db_state
+        ))
+        actions = QHBoxLayout()
+        actions.addStretch()
+        actions.addWidget(button("فحص السيرفر", "quiet", self._test_server))
+        actions.addWidget(button("فحص قاعدة البيانات", "quiet", self._test_db))
+        connection.body.addLayout(actions)
+        column.addWidget(connection)
 
-        card_financial = SettingsCard("المالية والتسعير", "💰")
-        txt_rate = QLineEdit("15.00")
-        txt_rate.setFixedWidth(100)
-        txt_rate.setStyleSheet(f"background-color: {Colors.BG_CARD_LIGHT}; color: {Colors.TEXT_PRIMARY}; border: 1px solid {Colors.BORDER}; padding: 6px; border-radius: 6px;")
-        card_financial.add_row("سعر الساعة الأساسي (ر.س):", txt_rate)
-        container_layout.addWidget(card_financial)
+        # Toggles
+        behavior = Card(padding=16, spacing=10)
+        behavior.body.addWidget(label("سلوك اللوحة", "Title"))
+        self.toggle_sound = ToggleSwitch(self.data.setting("ui.sound", True))
+        self.toggle_confirm = ToggleSwitch(self.data.setting("ui.confirm_destructive", True))
+        self.toggle_demo = ToggleSwitch(self.data.setting("ui.show_demo", True))
+        behavior.body.addWidget(Row("تنبيه صوتي", "عند نجاح أو فشل أمر", self.toggle_sound))
+        behavior.body.addWidget(Row("تأكيد الأوامر الحساسة", "قبل الإيقاف وإعادة التشغيل", self.toggle_confirm))
+        behavior.body.addWidget(Row("إظهار البيانات التجريبية", "عند تعذر الاتصال بقاعدة البيانات", self.toggle_demo))
+        behavior.body.addWidget(button("حفظ التفضيلات", "quiet", self._save_behavior))
+        column.addWidget(behavior)
 
-        card_security = SettingsCard("الأمان والحسابات", "🔒")
-        sw_2fa = ToggleSwitch(True)
-        card_security.add_row("تفعيل التوثيق الثنائي (2FA) للمدراء:", sw_2fa)
-        container_layout.addWidget(card_security)
+        # Data
+        data_card = Card(padding=16, spacing=10)
+        data_card.body.addWidget(label("البيانات", "Title"))
+        data_card.body.addWidget(label(
+            "نسخة احتياطية كاملة تُحفظ في مجلد backups داخل المشروع.", "Muted"
+        ))
+        data_row = QHBoxLayout()
+        data_row.addStretch()
+        data_row.addWidget(button("نسخة احتياطية", "quiet", self._backup))
+        data_card.body.addLayout(data_row)
 
-        btn_save = QPushButton("💾 حفظ كافة الإعدادات")
-        btn_save.setFixedHeight(46)
-        btn_save.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        btn_save.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_save.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Colors.GREEN};
-                color: #000000;
-                border: none;
-                border-radius: 8px;
-            }}
-            QPushButton:hover {{
-                background-color: {Colors.GREEN}EE;
-            }}
-        """)
-        btn_save.clicked.connect(self.save_settings)
-        container_layout.addWidget(btn_save)
+        about = QHBoxLayout()
+        about.addWidget(label(f"Gaming Center Pro — الإصدار {APP_VERSION}", "Caption"))
+        about.addStretch()
+        about.addWidget(label("GT POS Team", "Caption"))
+        data_card.body.addWidget(hline())
+        data_card.body.addLayout(about)
+        column.addWidget(data_card)
+        column.addStretch()
 
-        container_layout.addStretch()
-        scroll.setWidget(container)
-        main_layout.addWidget(scroll)
+        scroll.setWidget(host)
+        root.addWidget(scroll, 1)
 
-    def change_theme(self, index):
-        theme_key = self.combo_theme.itemData(index)
-        if theme_key and self.on_theme_change:
-            self.on_theme_change(theme_key)
+    def on_shown(self):
+        self.reload()
 
-    def save_settings(self):
-        QMessageBox.information(self, "تم الحفظ", "تم حفظ الإعدادات بنجاح!")
+    def reload(self):
+        profile = self.data.setting("center.profile", {}) or {}
+        self.center_name.setText(str(profile.get("name") or "Gaming Center Pro"))
+        self.center_phone.setText(str(profile.get("phone") or ""))
+        self.center_address.setText(str(profile.get("address") or ""))
+        self.db_state.setText("متصل" if self.data.live else "غير متصل")
+        self.db_state.set_tone("success" if self.data.live else "danger")
+        self.theme_hint.setText(THEMES[theme_key()]["hint"])
+
+    # ── actions ──────────────────────────────────────────────────────────
+    def _change_theme(self, key: str):
+        set_theme(key)
+        app = QApplication.instance()
+        if app is not None:
+            app.setStyleSheet(get_stylesheet())
+        self.theme_hint.setText(THEMES[key]["hint"])
+        window = self.window()
+        if hasattr(window, "_repolish_tree"):
+            window._repolish_tree(window)
+        if self.data.live:
+            self.data.set_setting("ui.theme", key, "ui")
+
+    def _save_profile(self):
+        profile = {
+            "name": self.center_name.text().strip(),
+            "phone": self.center_phone.text().strip(),
+            "address": self.center_address.text().strip(),
+        }
+        if not self.data.live:
+            Toast(self, "قاعدة البيانات غير متصلة — لن يُحفظ", "warning")
+            return
+        ok = self.data.set_setting("center.profile", profile, "center")
+        Toast(self, "حُفظت بيانات المركز" if ok else "تعذر الحفظ",
+              "success" if ok else "danger")
+
+    def _save_behavior(self):
+        if not self.data.live:
+            Toast(self, "قاعدة البيانات غير متصلة — لن يُحفظ", "warning")
+            return
+        payload = {
+            "sound": self.toggle_sound.checked,
+            "confirm_destructive": self.toggle_confirm.checked,
+            "show_demo": self.toggle_demo.checked,
+        }
+        ok = self.data.set_setting("ui.preferences", payload, "ui")
+        Toast(self, "حُفظت التفضيلات" if ok else "تعذر الحفظ",
+              "success" if ok else "danger")
+
+    def _test_server(self):
+        ok, message = CommandClient(self.host_input.text().strip(),
+                                    int(self.port_input.text().strip() or 54321)
+                                    ).send("PING")
+        Toast(self, f"السيرفر: {message}" if ok else message,
+              "success" if ok else "warning", 3200)
+
+    def _test_db(self):
+        self.data._live = None
+        live = self.data.live
+        self.db_state.setText("متصل" if live else "غير متصل")
+        self.db_state.set_tone("success" if live else "danger")
+        Toast(self, "قاعدة البيانات متصلة" if live else "تعذر الاتصال بقاعدة البيانات",
+              "success" if live else "danger", 3200)
+
+    def _backup(self):
+        if not self.data.live:
+            Toast(self, "قاعدة البيانات غير متصلة", "warning")
+            return
+        try:
+            from Server.config import get_connection_string
+            from Tools.db_backup import BackupManager
+            manager = BackupManager(get_connection_string())
+            if manager.connect():
+                path = manager.backup_database(DB_NAME)
+                manager.disconnect()
+                if path:
+                    Toast(self, f"حُفظت النسخة: {path}", "success", 3600)
+                else:
+                    Toast(self, "تعذر إنشاء النسخة", "danger")
+            else:
+                Toast(self, "تعذر الاتصال لإنشاء النسخة", "danger")
+        except Exception as error:  # noqa: BLE001
+            Toast(self, f"تعذر النسخ: {error}", "danger", 3600)

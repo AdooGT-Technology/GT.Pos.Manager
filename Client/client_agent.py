@@ -68,10 +68,10 @@ class GamingClientAgent:
 
     def run(self):
         self.running = True
-        print(f"=== GT-POS Client Agent ===")
+        print("=== GT-POS Client Agent ===")
         print(f"[i] Hostname: {self.hostname}")
         print(f"[i] Server: {self.server_host}:{self.server_port}")
-        print(f"[i] Starting telemetry loop...")
+        print("[i] Starting telemetry loop...")
 
         self.send(self.register())
 

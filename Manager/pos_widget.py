@@ -1,313 +1,298 @@
-import os
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QGridLayout, QScrollArea, QLineEdit, QSpinBox,
-    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox
-)
+# -*- coding: utf-8 -*-
+"""Point of sale: pick items, adjust quantities, close the bill."""
+
+from __future__ import annotations
+
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont, QPixmap
+from PyQt6.QtWidgets import (
+    QFrame, QGridLayout, QHBoxLayout, QLabel, QMessageBox, QScrollArea,
+    QSizePolicy, QVBoxLayout, QWidget,
+)
+
 from Manager.theme import Colors
+from Manager.ui import (
+    Card, EmptyState, SearchInput, Segmented, Toast, button, hline, label,
+)
 
-class ProductCard(QFrame):
-    def __init__(self, product: dict, on_add_callback=None):
-        super().__init__()
-        self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+TAX_RATE = 0.15
+
+
+class ProductTile(QFrame):
+    def __init__(self, product: dict, on_add=None, parent=None):
+        super().__init__(parent)
         self.product = product
-        self.on_add = on_add_callback
-        
-        self.setObjectName("ProductCard")
-        self.setStyleSheet(f"""
-            QFrame#ProductCard {{
-                background-color: {Colors.BG_CARD};
-                border: 1px solid {Colors.BORDER};
-                border-radius: 12px;
-            }}
-            QFrame#ProductCard:hover {{
-                border-color: {Colors.CYAN};
-                background-color: {Colors.BG_HOVER};
-            }}
-        """)
-        
+        self.on_add = on_add
+        self.setObjectName("Card")
+        self.setMinimumHeight(112)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(8)
-        
-        img_lbl = QLabel()
-        img_lbl.setFixedHeight(90)
-        img_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        img_path = product.get("IconPath") or product.get("image", "")
-        
-        if img_path and os.path.exists(img_path):
-            pix = QPixmap(img_path).scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-            img_lbl.setPixmap(pix)
-        else:
-            img_lbl.setText("📦")
-            img_lbl.setFont(QFont("Segoe UI Emoji", 36))
-            
-        name_lbl = QLabel(product.get("ProductName", "منتج"))
-        name_lbl.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        name_lbl.setStyleSheet(f"color: {Colors.TEXT_PRIMARY};")
-        name_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        name_lbl.setWordWrap(True)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(6)
 
-        price = float(product.get("Price", 0.0))
-        price_lbl = QLabel(f"{price:.2f} ر.س")
-        price_lbl.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        price_lbl.setStyleSheet(f"color: {Colors.GREEN};")
-        price_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        btn_add = QPushButton("➕ إضافة للسلة")
-        btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_add.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Colors.CYAN};
-                color: #000000;
-                font-weight: bold;
-                border: none;
-                border-radius: 6px;
-                padding: 6px;
-            }}
-            QPushButton:hover {{
-                background-color: {Colors.CYAN}DD;
-            }}
-        """)
+        top = QHBoxLayout()
+        glyph = label(str(product.get("Icon") or product.get("IconPath") or "▦"), "Title")
+        glyph.setStyleSheet("font-size: 20px;")
+        stock = int(product.get("Stock") or 0)
+        stock_pill = label(f"متبقي {stock}" if stock < 900 else "خدمة", "Caption")
+        top.addWidget(glyph)
+        top.addStretch()
+        top.addWidget(stock_pill)
+        layout.addLayout(top)
+
+        name = label(str(product.get("ProductName") or "منتج"), "Body")
+        name.setWordWrap(True)
+        layout.addWidget(name)
+
+        bottom = QHBoxLayout()
+        price = label(f"{float(product.get('Price') or 0):,.2f} ر.س", "Title")
+        add = button("إضافة", "ghost", self._add, compact=True)
+        bottom.addWidget(price)
+        bottom.addStretch()
+        bottom.addWidget(add)
+        layout.addLayout(bottom)
+
+    def _add(self):
         if self.on_add:
-            btn_add.clicked.connect(lambda: self.on_add(self.product))
+            self.on_add(self.product)
 
-        layout.addWidget(img_lbl)
-        layout.addWidget(name_lbl)
-        layout.addWidget(price_lbl)
-        layout.addWidget(btn_add)
+    def mouseDoubleClickEvent(self, _event):
+        self._add()
+
 
 class POSWidget(QWidget):
-    def __init__(self, db=None):
-        super().__init__()
-        self.db = db
+    def __init__(self, data, parent=None):
+        super().__init__(parent)
+        self.data = data
         self.cart = []
+        self.products_data = []
+        self.category = "all"
+        self._build()
+        self.reload()
+
+    def set_navigator(self, _navigate):
+        pass
+
+    def _build(self):
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.setup_ui()
-        
-    def setup_ui(self):
-        main_layout = QHBoxLayout(self)
-        main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(20)
-        
-        left_layout = QVBoxLayout()
-        left_layout.setSpacing(14)
-        
-        search_bar = QLineEdit()
-        search_bar.setPlaceholderText("🔍 ابحث عن منتج بالاسم أو الباركود...")
-        search_bar.setFixedHeight(42)
-        search_bar.setStyleSheet(f"""
-            QLineEdit {{
-                background-color: {Colors.BG_CARD};
-                border: 1px solid {Colors.BORDER};
-                border-radius: 8px;
-                padding: 0 14px;
-                color: {Colors.TEXT_PRIMARY};
-                font-size: 13px;
-            }}
-            QLineEdit:focus {{
-                border-color: {Colors.CYAN};
-            }}
-        """)
-        search_bar.textChanged.connect(self.filter_products)
-        left_layout.addWidget(search_bar)
-        
+        root = QHBoxLayout(self)
+        root.setContentsMargins(24, 20, 24, 20)
+        root.setSpacing(16)
+
+        left = QVBoxLayout()
+        left.setSpacing(12)
+
+        toolbar = QHBoxLayout()
+        toolbar.setSpacing(8)
+        self.search = SearchInput("ابحث عن منتج")
+        self.search.textChanged.connect(lambda _text: self._fill_products())
+        toolbar.addWidget(self.search)
+        self.categories = Segmented([("all", "الكل")], "all")
+        self.categories.changed.connect(self._category_changed)
+        toolbar.addWidget(self.categories)
+        toolbar.addStretch()
+        left.addLayout(toolbar)
+
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet("QScrollArea { background: transparent; }")
-        
-        self.grid_widget = QWidget()
-        self.grid_layout = QGridLayout(self.grid_widget)
-        self.grid_layout.setSpacing(12)
-        
-        scroll.setWidget(self.grid_widget)
-        left_layout.addWidget(scroll)
-        
-        main_layout.addLayout(left_layout, 2)
-        
-        cart_frame = QFrame()
-        cart_frame.setFixedWidth(390)
-        cart_frame.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Colors.BG_CARD};
-                border: 1px solid {Colors.BORDER};
-                border-radius: 14px;
-            }}
-        """)
-        cart_layout = QVBoxLayout(cart_frame)
-        cart_layout.setContentsMargins(16, 16, 16, 16)
-        cart_layout.setSpacing(12)
-        
-        cart_title = QLabel("🛒 سلة المشتريات")
-        cart_title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        cart_title.setStyleSheet(f"color: {Colors.CYAN};")
-        cart_layout.addWidget(cart_title)
-        
-        self.cart_table = QTableWidget(0, 4)
-        self.cart_table.setHorizontalHeaderLabels(["المنتج", "الكمية", "السعر", "إلغاء"])
-        self.cart_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.cart_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        self.cart_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        self.cart_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-        self.cart_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.cart_table.setStyleSheet(f"""
-            QTableWidget {{
-                background-color: transparent;
-                border: none;
-                gridline-color: {Colors.BORDER};
-                color: {Colors.TEXT_PRIMARY};
-            }}
-            QHeaderView::section {{
-                background-color: {Colors.BG_CARD_LIGHT};
-                color: {Colors.TEXT_MUTED};
-                border: none;
-                padding: 6px;
-                font-weight: bold;
-            }}
-        """)
-        cart_layout.addWidget(self.cart_table)
-        
-        summary_frame = QFrame()
-        summary_frame.setStyleSheet(f"background-color: {Colors.BG_CARD_LIGHT}; border-radius: 8px; padding: 10px;")
-        s_layout = QVBoxLayout(summary_frame)
-        s_layout.setSpacing(6)
-        
-        self.lbl_subtotal = QLabel("المجموع: 0.00 ر.س")
-        self.lbl_subtotal.setFont(QFont("Segoe UI", 11))
-        self.lbl_subtotal.setStyleSheet(f"color: {Colors.TEXT_MUTED};")
-        
-        self.lbl_tax = QLabel("الضريبة (15%): 0.00 ر.س")
-        self.lbl_tax.setFont(QFont("Segoe UI", 11))
-        self.lbl_tax.setStyleSheet(f"color: {Colors.TEXT_MUTED};")
+        host = QWidget()
+        self.grid = QGridLayout(host)
+        self.grid.setContentsMargins(0, 0, 0, 0)
+        self.grid.setSpacing(10)
+        self.grid.setAlignment(Qt.AlignmentFlag.AlignTop)
+        scroll.setWidget(host)
+        left.addWidget(scroll, 1)
 
-        self.lbl_total = QLabel("الإجمالي النهائي: 0.00 ر.س")
-        self.lbl_total.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        self.lbl_total.setStyleSheet(f"color: {Colors.GREEN};")
+        self.empty = EmptyState("لا توجد منتجات مطابقة", "غيّر التصنيف أو امسح البحث.")
+        left.addWidget(self.empty)
+        self.empty.hide()
+        root.addLayout(left, 3)
 
-        s_layout.addWidget(self.lbl_subtotal)
-        s_layout.addWidget(self.lbl_tax)
-        s_layout.addWidget(self.lbl_total)
-        
-        cart_layout.addWidget(summary_frame)
-        
-        btn_checkout = QPushButton("💳 إتمام عملية البيع")
-        btn_checkout.setFixedHeight(48)
-        btn_checkout.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        btn_checkout.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_checkout.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Colors.GREEN};
-                color: #000000;
-                border: none;
-                border-radius: 8px;
-            }}
-            QPushButton:hover {{
-                background-color: {Colors.GREEN}EE;
-            }}
-        """)
-        btn_checkout.clicked.connect(self.checkout)
-        
-        cart_layout.addWidget(btn_checkout)
-        
-        main_layout.addWidget(cart_frame)
-        
-        self.load_products()
+        cart = Card(padding=16, spacing=10)
+        cart.setFixedWidth(360)
+        head = QHBoxLayout()
+        head.addWidget(label("الفاتورة", "Title"))
+        self.cart_count = label("0 عنصر", "Caption")
+        head.addStretch()
+        head.addWidget(self.cart_count)
+        cart.body.addLayout(head)
+        cart.body.addWidget(hline())
 
-    def load_products(self):
-        products = []
-        if self.db and hasattr(self.db, 'get_connection'):
-            try:
-                conn = self.db.get_connection()
-                if conn:
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT ProductId, ProductName, Price, Category, IconPath FROM Products WHERE IsActive=1")
-                    cols = [column[0] for column in cursor.description]
-                    for r in cursor.fetchall():
-                        products.append(dict(zip(cols, r)))
-                    conn.close()
-            except Exception as e:
-                print("Error loading products:", e)
-                
-        if not products:
-            products = [
-                {"ProductId": 1, "ProductName": "مشروب الطاقة Red Bull", "Price": 12.00, "Category": "مشروبات"},
-                {"ProductId": 2, "ProductName": "بطاطس Pringles كبير", "Price": 10.00, "Category": "وجبات خفيفة"},
-                {"ProductId": 3, "ProductName": "قهوة إسبانيول باردة", "Price": 15.00, "Category": "مشروبات"},
-                {"ProductId": 4, "ProductName": "ساعة لعب إضافية VIP", "Price": 25.00, "Category": "خدمات"},
-                {"ProductId": 5, "ProductName": "وجبة برجر دجاج + كولا", "Price": 22.00, "Category": "وجبات"},
-                {"ProductId": 6, "ProductName": "ماء نقي 500مل", "Price": 2.00, "Category": "مشروبات"},
-            ]
-            
-        self.products_data = products
-        self.display_products(products)
+        self.cart_box = QVBoxLayout()
+        self.cart_box.setSpacing(6)
+        cart.body.addLayout(self.cart_box)
+        cart.body.addStretch()
 
-    def display_products(self, products):
-        while self.grid_layout.count():
-            item = self.grid_layout.takeAt(0)
+        cart.body.addWidget(hline())
+        self.subtotal_label = label("المجموع 0.00", "Muted")
+        self.tax_label = label("الضريبة 15%  0.00", "Muted")
+        self.total_label = label("0.00 ر.س", "Money")
+        cart.body.addWidget(self.subtotal_label)
+        cart.body.addWidget(self.tax_label)
+        cart.body.addWidget(self.total_label)
+        cart.body.addWidget(button("إتمام البيع", "primary", self.checkout))
+        cart.body.addWidget(button("تفريغ الفاتورة", "ghost", self.clear_cart, compact=True))
+        root.addWidget(cart)
+
+    # ── products ─────────────────────────────────────────────────────────
+    def on_shown(self):
+        self.reload()
+
+    def reload(self):
+        self.products_data = self.data.products()
+        names = ["all"] + sorted({str(p.get("Category") or "عام") for p in self.products_data})
+        labels = [("all", "الكل")] + [(name, name) for name in names[1:]]
+        if [key for key, _ in labels] != [key for key, _ in self.categories.options]:
+            if self.category not in {key for key, _ in labels}:
+                self.category = "all"
+            self.categories.options = labels
+            self._rebuild_categories()
+        self._fill_products()
+
+    def _rebuild_categories(self):
+        layout = self.categories.layout()
+        while layout.count():
+            item = layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
-                
-        col_count = 3
-        for i, prod in enumerate(products):
-            card = ProductCard(prod, on_add_callback=self.add_to_cart)
-            row = i // col_count
-            col = i % col_count
-            self.grid_layout.addWidget(card, row, col)
+        self.categories.buttons = {}
+        for key, text in self.categories.options:
+            widget = button(text, "ghost", lambda _c=False, k=key: self.categories.select(k), compact=True)
+            widget.setCheckable(True)
+            layout.addWidget(widget)
+            self.categories.buttons[key] = widget
+        self.categories.current = "all" if self.categories.current not in self.categories.buttons else self.categories.current
+        self.categories._sync()
 
-    def filter_products(self, text):
-        filtered = [p for p in self.products_data if text.lower() in p.get("ProductName", "").lower()]
-        self.display_products(filtered)
+    def _category_changed(self, key: str):
+        self.category = key
+        self._fill_products()
 
-    def add_to_cart(self, product):
-        p_id = product.get("ProductId") or product.get("id") or 0
-        for item in self.cart:
-            if item["product"].get("ProductId") == p_id:
-                item["qty"] += 1
-                self.update_cart_ui()
+    def _visible_products(self):
+        needle = self.search.text().strip().lower()
+        rows = self.products_data
+        if self.category != "all":
+            rows = [p for p in rows if str(p.get("Category")) == self.category]
+        if needle:
+            rows = [p for p in rows if needle in str(p.get("ProductName", "")).lower()]
+        return rows
+
+    def _fill_products(self):
+        while self.grid.count():
+            item = self.grid.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        rows = self._visible_products()
+        columns = 3
+        for index, product in enumerate(rows):
+            tile = ProductTile(product, on_add=self.add_to_cart)
+            self.grid.addWidget(tile, index // columns, index % columns)
+        self.empty.setVisible(not rows)
+
+    # ── cart ─────────────────────────────────────────────────────────────
+    def add_to_cart(self, product: dict):
+        product_id = product.get("ProductId")
+        for line in self.cart:
+            if line["product"].get("ProductId") == product_id:
+                line["qty"] += 1
+                self._render_cart()
                 return
         self.cart.append({"product": product, "qty": 1})
-        self.update_cart_ui()
+        self._render_cart()
 
-    def update_cart_ui(self):
-        self.cart_table.setRowCount(0)
+    def clear_cart(self):
+        self.cart.clear()
+        self._render_cart()
+
+    def _render_cart(self):
+        while self.cart_box.count():
+            item = self.cart_box.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
         subtotal = 0.0
-        
-        for row, item in enumerate(self.cart):
-            prod = item["product"]
-            qty = item["qty"]
-            price = float(prod.get("Price", 0.0))
-            item_total = price * qty
-            subtotal += item_total
-            
-            self.cart_table.insertRow(row)
-            self.cart_table.setItem(row, 0, QTableWidgetItem(prod.get("ProductName", "")))
-            self.cart_table.setItem(row, 1, QTableWidgetItem(str(qty)))
-            self.cart_table.setItem(row, 2, QTableWidgetItem(f"{item_total:.2f}"))
-            
-            btn_del = QPushButton("✕")
-            btn_del.setStyleSheet(f"color: {Colors.RED}; background: transparent; font-weight: bold; border: none;")
-            btn_del.clicked.connect(lambda checked, r=row: self.remove_cart_item(r))
-            self.cart_table.setCellWidget(row, 3, btn_del)
-            
-        tax = subtotal * 0.15
-        total = subtotal + tax
-        
-        self.lbl_subtotal.setText(f"المجموع: {subtotal:.2f} ر.س")
-        self.lbl_tax.setText(f"الضريبة (15%): {tax:.2f} ر.س")
-        self.lbl_total.setText(f"الإجمالي النهائي: {total:.2f} ر.س")
+        count = 0
+        for line in self.cart:
+            product = line["product"]
+            qty = line["qty"]
+            total = float(product.get("Price") or 0) * qty
+            subtotal += total
+            count += qty
 
-    def remove_cart_item(self, row):
+            row = QFrame()
+            row.setObjectName("Inset")
+            box = QHBoxLayout(row)
+            box.setContentsMargins(10, 8, 10, 8)
+            box.setSpacing(6)
+            name = label(str(product.get("ProductName")), "Body")
+            name.setWordWrap(True)
+            box.addWidget(name, 1)
+            box.addWidget(button("−", "ghost", lambda _c=False, l=line: self._change(l, -1), compact=True))
+            box.addWidget(label(str(qty), "Body"))
+            box.addWidget(button("+", "ghost", lambda _c=False, l=line: self._change(l, 1), compact=True))
+            box.addWidget(button(f"{total:,.2f}", "ghost", lambda _c=False, l=line: self._change(l, -qty), compact=True))
+            self.cart_box.addWidget(row)
+
+        tax = subtotal * TAX_RATE
+        self.cart_count.setText(f"{count} عنصر")
+        self.subtotal_label.setText(f"المجموع {subtotal:,.2f}")
+        self.tax_label.setText(f"الضريبة 15%  {tax:,.2f}")
+        self.total_label.setText(f"{subtotal + tax:,.2f} ر.س")
+
+    def _change(self, line: dict, delta: int):
+        line["qty"] += delta
+        if line["qty"] <= 0:
+            self.cart.remove(line)
+        self._render_cart()
+
+    def remove_cart_item(self, row: int):
         if 0 <= row < len(self.cart):
             self.cart.pop(row)
-            self.update_cart_ui()
+            self._render_cart()
 
+    # ── checkout ─────────────────────────────────────────────────────────
     def checkout(self):
         if not self.cart:
-            QMessageBox.warning(self, "السلة فارغة", "برجاء إضافة منتجات للسلة أولاً قبل إتمام الفاتورة.")
+            Toast(self, "الفاتورة فارغة", "warning")
             return
-        QMessageBox.information(self, "تمت العملية بنجاح", "تم تسجيل الفاتورة وطباعة الإيصال بنجاح!")
-        self.cart.clear()
-        self.update_cart_ui()
+        subtotal = sum(float(l["product"].get("Price") or 0) * l["qty"] for l in self.cart)
+        total = subtotal * (1 + TAX_RATE)
+        answer = QMessageBox.question(
+            self, "إتمام البيع",
+            f"سيتم تسجيل فاتورة بمبلغ {total:,.2f} ر.س.\nهل تريد المتابعة؟",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        saved = True
+        if self.data.live:
+            for line in self.cart:
+                product = line["product"]
+                qty = line["qty"]
+                unit = float(product.get("Price") or 0)
+                ok = self.data.execute(
+                    "INSERT INTO Orders (ProductId, ProductName, Quantity, UnitPrice,"
+                    " TotalPrice, FinalAmount, Status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (product.get("ProductId"), product.get("ProductName"), qty,
+                     unit, unit * qty, unit * qty * (1 + TAX_RATE), "مكتمل"),
+                )
+                saved = saved and ok
+                if int(product.get("Stock") or 0) < 900:
+                    self.data.execute(
+                        "UPDATE Products SET Stock = Stock - ? WHERE ProductId = ?",
+                        (qty, product.get("ProductId")),
+                    )
+        else:
+            saved = False
+
+        if saved:
+            Toast(self, f"سُجّلت الفاتورة — {total:,.2f} ر.س", "success")
+        else:
+            Toast(self, "لم تُحفظ الفاتورة: قاعدة البيانات غير متصلة", "warning", 3200)
+        self.clear_cart()
+        if saved:
+            self.data.invalidate()
+            self.reload()
