@@ -1,0 +1,25 @@
+=== GT-POS Gizmo Manager - سجل التحديثات ===
+
+الإصدار 3.0.0 "Aurora UX" - 2025-07-11
+- إعادة بناء كاملة للواجهة بتصميم احترافي حديث (UI/UX Pro MAX)
+- إضافة 7 مظاهر (Themes) قابلة للتبديل فوراً من الهيدر أو الإعدادات
+- Dashboard: بطاقات إحصائية + قائمة أجهزة بصفوف أنيقة (غير Excel) + لوحة Hardware Monitor Overlay
+- Hardware Monitor: CPU Use/Temp, GPU Use/Name, VRAM Used/Total, RAM Used/Total, Disk Used/Total/Health, Network (1000M Green / 100M Yellow / Lost Red), Upload/Download/Total Traffic
+- Sidebar & Buttons: الأيقونات على اليمين قبل النص (RTL Native)
+- Humanizer: جميع النصوص تمت صياغتها بشكل طبيعي وبشري
+- Games: أيقونات البطاقات على اليمين، تصميم بطاقات 180x240 Portrait، زر تريال يفتح مشغلاً داخلياً
+- POS: تصميم نظيف بدون قص، نصوص طبيعية
+- Settings: إضافة قسم المظاهر، تخطيط رأسي سلس، نصوص محسنة
+- Trailer Player: إصلاح QWidget NameError، دعم YouTube NoCookie و MP4 محلي بدون إعلانات
+- إصلاح جميع الأخطاء العشوائية في التخطيطات
+
+الإصدار 3.0.1 "Aurora UX Patch" - 2025-07-11
+- إصلاح خطأ AttributeError: 'QHBoxLayout' object has no attribute 'setLayoutDirection' في StatCard داخل dashboard_widget.py
+- مراجعة وتأكيد كافة استدعاءات setLayoutDirection في جميع مكونات الواجهة وتطبيقها حصرياً على QWidget
+- التأكد من سلامة جميع المخططات وتنسيقات اتجاه الواجهة RTL
+
+الإصدار 3.0.2 "Aurora UX Theme Fix" - 2025-07-11
+- إصلاح خطأ AttributeError: type object 'Colors' has no attribute 'CYAN' في Manager/theme.py و dashboard_widget.py
+- إضافة جميع متغيرات الألوان كأعضاء ثابتة داخل كلاس Colors لمنع أخطاء التحميل المبكر (Import Time Binding)
+- جعل القيم الافتراضية للمعاملات الديناميكية color=None وحلها داخل __init__
+- تأكيد سلامة كامل واجهات البرنامج والـ Themes السبعة

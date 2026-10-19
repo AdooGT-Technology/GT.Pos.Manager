@@ -1,0 +1,27 @@
+[23:00:57] [INFO] [Main] 🔍 اختبار الاتصال بقاعدة البيانات...
+[23:00:57] [INFO] [Main] ✅ قاعدة البيانات متصلة
+[23:00:57] [INFO] [ServerNetwork] 🚀 السيرفر يعمل على 0.0.0.0:9500
+[23:00:57] [INFO] [ServerNetwork] 📡 في انتظار اتصالات العملاء...
+[23:02:14] [INFO] [ServerNetwork] ✅ عميل جديد: client_1 من 127.0.0.1:51780
+[23:02:14] [INFO] [ServerNetwork] ✅ عميل جديد: client_2 من 127.0.0.1:51781
+[23:02:14] [INFO] [ServerNetwork] 🔌 انقطع: client_1 ()
+[23:02:15] [INFO] [ServerNetwork] 🔌 انقطع: client_2 ()
+[23:02:15] [INFO] [ServerNetwork] ✅ عميل جديد: client_3 من 127.0.0.1:51782
+[23:02:15] [INFO] [ServerNetwork] 🔌 انقطع: client_3 ()
+[23:02:15] [INFO] [ServerNetwork] ✅ عميل جديد: client_4 من 127.0.0.1:51783
+[23:02:21] [INFO] [ServerNetwork] 🔌 انقطع: client_4 ()
+[23:02:21] [INFO] [ServerNetwork] ✅ عميل جديد: client_5 من 127.0.0.1:51784
+[23:02:21] [INFO] [ServerNetwork] 🔌 انقطع: client_5 ()
+[23:02:21] [INFO] [ServerNetwork] ✅ عميل جديد: client_6 من 127.0.0.1:51785
+[23:02:21] [INFO] [ServerNetwork] ✅ عميل جديد: client_7 من 127.0.0.1:51786
+[23:02:21] [INFO] [ServerNetwork] 🔌 انقطع: client_6 ()
+[23:02:57] [INFO] [Main] 
+🛑 جاري إيقاف السيرفر...
+[23:02:58] [ERROR] [ServerNetwork] ❌ خطأ في الاستقبال من client_7: [WinError 10053] An established connection was aborted by the software in your host machine
+[23:02:58] [INFO] [ServerNetwork] 🛑 تم إيقاف السيرفر
+[23:02:58] [INFO] [ServerNetwork] 🔌 انقطع: client_7 ()
+[23:02:58] [INFO] [ServerNetwork] 🛑 تم إيقاف السيرفر
+[23:04:17] [INFO] [Main] 🔍 اختبار الاتصال بقاعدة البيانات...
+[23:04:18] [INFO] [Main] ✅ قاعدة البيانات متصلة
+[23:04:18] [INFO] [ServerNetwork] 🚀 السيرفر يعمل على 0.0.0.0:9500
+[23:04:18] [INFO] [ServerNetwork] 📡 في انتظار اتصالات العملاء...
