@@ -1,9 +1,9 @@
 APP_NAME = "GT-POS Gizmo Manager"
 APP_TITLE = "Gaming Center Pro"
 APP_SUBTITLE = "Admin Panel"
-APP_VERSION = "3.0.2"
-APP_CODENAME = "Aurora UX Theme Fix"
+APP_VERSION = "3.4.0"
+APP_CODENAME = "Gizmo Tasks & UI Overhaul"
 VERSION = APP_VERSION
 DB_MIN_VERSION = "1.0.0"
 AUTHOR = "GT POS Team"
-RELEASE_DATE = "2025-07-11"
+RELEASE_DATE = "2025-07-12"
