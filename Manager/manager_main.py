@@ -30,6 +30,8 @@ PAGE_SPECS = [
     ("devices", "monitor", "الأجهزة", "التشغيل", "Manager.devices_widget:DevicesWidget"),
     ("studio", "studio", "استوديو العميل", "التشغيل", "Manager.client_studio:ClientStudioWidget"),
     ("members", "users", "الأعضاء", "العملاء", "Manager.users_widget:UsersWidget"),
+    ("sessions", "clock", "الجلسات المباشرة", "التشغيل", "Manager.sessions_widget:SessionsWidget"),
+    ("shifts", "calendar", "الورديات", "التشغيل", "Manager.shifts_widget:ShiftsWidget"),
     ("pos", "cart", "نقطة البيع", "العملاء", "Manager.pos_widget:POSWidget"),
     ("wallet", "wallet", "المحفظة", "العملاء", "Manager.wallet_widget:WalletWidget"),
     ("library", "gamepad", "مكتبة الألعاب", "المحتوى", "Manager.games_widget:GamesWidget"),
@@ -37,6 +39,7 @@ PAGE_SPECS = [
     ("reports", "chart", "التقارير", "الإدارة", "Manager.reports_widget:ReportsWidget"),
     ("rewards", "gift", "المكافآت", "الإدارة", "Manager.rewards_widget:RewardsWidget"),
     ("events", "trophy", "البطولات", "الإدارة", "Manager.tournaments_widget:TournamentsWidget"),
+    ("billing", "receipt", "الفوترة والتسعير", "الإدارة", "Manager.billing_widget:BillingWidget"),
     ("settings", "settings", "الإعدادات", "الإدارة", "Manager.settings_widget:SettingsWidget"),
 ]
 
@@ -45,6 +48,8 @@ PAGE_SUBTITLES = {
     "devices": "من يعمل، ومن جاهز، والتحكم عن بُعد",
     "studio": "معاينة شاشة العميل وأوامر الجلسة",
     "members": "حسابات اللاعبين والأرصدة",
+    "sessions": "من يلعب الآن، والوقت المتبقي في كل جلسة",
+    "shifts": "فتح الدرج وإغلاقه ومطابقة النقد",
     "pos": "بيع سريع للكاشير",
     "wallet": "إيداع وسحب وسجل الحركة",
     "library": "ألعاب الصالة وملفات التشغيل",
@@ -52,6 +57,7 @@ PAGE_SUBTITLES = {
     "reports": "مبيعات وجلسات وأداء",
     "rewards": "قواعد النقاط والمكافآت",
     "events": "بطولات وجدول مباريات",
+    "billing": "المجموعات والملفات والعروض والأسعار",
     "settings": "الشكل والاتصال والبيانات",
 }
 
@@ -252,7 +258,8 @@ class MainManager(QMainWindow):
     FEATURE_PAGES = {
         "pos": "pos", "wallet": "wallet", "library": "library", "tasks": "tasks",
         "reports": "reports", "rewards": "rewards", "tournaments": "events",
-        "studio": "studio",
+        "studio": "studio", "sessions": "sessions", "shifts": "shifts",
+        "billing": "billing",
     }
 
     def _start_page(self) -> str:

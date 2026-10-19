@@ -5,6 +5,7 @@ TABLE_SCHEMAS = {
             HostName NVARCHAR(50) NOT NULL DEFAULT '',
             HostNumber INT NOT NULL DEFAULT 0,
             HostType NVARCHAR(20) DEFAULT 'PC',
+            HostGroup NVARCHAR(50) DEFAULT 'أجهزة PC',
             IPAddress NVARCHAR(50) DEFAULT '',
             MACAddress NVARCHAR(50) DEFAULT '',
             Status NVARCHAR(20) DEFAULT 'متاح',
@@ -45,6 +46,8 @@ TABLE_SCHEMAS = {
             Balance DECIMAL(18,2) DEFAULT 0.00,
             Points INT DEFAULT 0,
             MemberType NVARCHAR(20) DEFAULT 'عادي',
+            MemberGroup NVARCHAR(50) DEFAULT 'عادي',
+            PurchasedMinutes INT DEFAULT 0,
             IsActive BIT DEFAULT 1,
             CreatedAt DATETIME DEFAULT GETDATE()
         )
@@ -60,7 +63,42 @@ TABLE_SCHEMAS = {
             EndTime DATETIME NULL,
             Duration INT DEFAULT 0,
             Cost DECIMAL(18,2) DEFAULT 0.00,
-            Status NVARCHAR(20) DEFAULT 'نشط'
+            Status NVARCHAR(20) DEFAULT 'نشط',
+            HostName NVARCHAR(50) DEFAULT '',
+            MemberName NVARCHAR(100) DEFAULT '',
+            HostGroup NVARCHAR(50) DEFAULT '',
+            BillingProfile NVARCHAR(100) DEFAULT '',
+            HourlyRate DECIMAL(18,2) DEFAULT 0.00,
+            PaidMode NVARCHAR(20) DEFAULT 'deposit',
+            MinutesPurchased INT DEFAULT 0,
+            AmountCharged DECIMAL(18,2) DEFAULT 0.00,
+            LastTick DATETIME NULL
+        )
+    """,
+    "Shifts": """
+        CREATE TABLE [Shifts] (
+            ShiftId INT IDENTITY(1,1) PRIMARY KEY,
+            StaffName NVARCHAR(100) DEFAULT '',
+            OpenedAt DATETIME DEFAULT GETDATE(),
+            ClosedAt DATETIME NULL,
+            OpeningCash DECIMAL(18,2) DEFAULT 0.00,
+            ExpectedCash DECIMAL(18,2) DEFAULT 0.00,
+            ClosingCash DECIMAL(18,2) DEFAULT 0.00,
+            Difference DECIMAL(18,2) DEFAULT 0.00,
+            SalesCount INT DEFAULT 0,
+            Status NVARCHAR(20) DEFAULT 'مفتوحة',
+            Note NVARCHAR(300) DEFAULT ''
+        )
+    """,
+    "CashMovements": """
+        CREATE TABLE [CashMovements] (
+            MovementId INT IDENTITY(1,1) PRIMARY KEY,
+            ShiftId INT NULL,
+            Kind NVARCHAR(10) DEFAULT 'in',
+            Amount DECIMAL(18,2) DEFAULT 0.00,
+            Reason NVARCHAR(200) DEFAULT '',
+            CreatedBy NVARCHAR(80) DEFAULT '',
+            CreatedAt DATETIME DEFAULT GETDATE()
         )
     """,
     "TransactionHistory": """
@@ -207,6 +245,7 @@ REQUIRED_COLUMNS = {
         "Net_Download": "FLOAT DEFAULT 0",
         "Net_Total": "FLOAT DEFAULT 0",
         "UptimeMinutes": "INT DEFAULT 0",
+        "HostGroup": "NVARCHAR(50) DEFAULT 'أجهزة PC'",
         "LastSeen": "DATETIME NULL",
         "CreatedAt": "DATETIME DEFAULT GETDATE()"
     },
@@ -219,7 +258,16 @@ REQUIRED_COLUMNS = {
         "EndTime": "DATETIME NULL",
         "Duration": "INT DEFAULT 0",
         "Cost": "DECIMAL(18,2) DEFAULT 0.00",
-        "Status": "NVARCHAR(20) DEFAULT 'نشط'"
+        "Status": "NVARCHAR(20) DEFAULT 'نشط'",
+        "HostName": "NVARCHAR(50) DEFAULT ''",
+        "MemberName": "NVARCHAR(100) DEFAULT ''",
+        "HostGroup": "NVARCHAR(50) DEFAULT ''",
+        "BillingProfile": "NVARCHAR(100) DEFAULT ''",
+        "HourlyRate": "DECIMAL(18,2) DEFAULT 0.00",
+        "PaidMode": "NVARCHAR(20) DEFAULT 'deposit'",
+        "MinutesPurchased": "INT DEFAULT 0",
+        "AmountCharged": "DECIMAL(18,2) DEFAULT 0.00",
+        "LastTick": "DATETIME NULL"
     },
     "TransactionHistory": {
         "MemberId": "INT NULL",
@@ -253,6 +301,8 @@ REQUIRED_COLUMNS = {
         "Balance": "DECIMAL(18,2) DEFAULT 0.00",
         "Points": "INT DEFAULT 0",
         "MemberType": "NVARCHAR(20) DEFAULT 'عادي'",
+        "MemberGroup": "NVARCHAR(50) DEFAULT 'عادي'",
+        "PurchasedMinutes": "INT DEFAULT 0",
         "IsActive": "BIT DEFAULT 1",
         "CreatedAt": "DATETIME DEFAULT GETDATE()"
     },
@@ -398,6 +448,58 @@ def _settings_seed():
     return statements
 
 
+def _billing_seed():
+    """Gizmo-style billing catalogue: user groups, host groups, profiles, offers."""
+    import json
+
+    catalogs = {
+        "settings.billing.usergroups": {
+            "rows": [
+                {"name": "زائر", "kind": "guest", "profile": "التسعير الأساسي", "discount": 0, "points": 1, "active": True},
+                {"name": "عادي", "kind": "member", "profile": "التسعير الأساسي", "discount": 0, "points": 1, "active": True},
+                {"name": "VIP", "kind": "member", "profile": "تسعير VIP", "discount": 15, "points": 2, "active": True},
+                {"name": "eSports", "kind": "member", "profile": "تسعير البطولات", "discount": 10, "points": 2, "active": True},
+            ]
+        },
+        "settings.billing.hostgroups": {
+            "rows": [
+                {"name": "أجهزة PC", "profile": "", "note": "السعر الافتراضي لمجموعة العضو"},
+                {"name": "غرف VIP", "profile": "تسعير VIP", "note": "سعر أعلى للأجهزة المميزة"},
+                {"name": "بلايستيشن", "profile": "تسعير الكونسول", "note": "أجهزة كونسول"},
+            ]
+        },
+        "settings.billing.profiles": {
+            "rows": [
+                {"name": "التسعير الأساسي", "hourly": 15, "minimum": 30, "round": 15, "active": True,
+                 "custom": "18:00-23:00=20;23:00-06:00=12"},
+                {"name": "تسعير VIP", "hourly": 25, "minimum": 60, "round": 15, "active": True,
+                 "custom": "18:00-23:00=30"},
+                {"name": "تسعير الكونسول", "hourly": 20, "minimum": 30, "round": 15, "active": True,
+                 "custom": ""},
+                {"name": "تسعير البطولات", "hourly": 35, "minimum": 60, "round": 30, "active": True,
+                 "custom": "18:00-23:00=40"},
+            ]
+        },
+        "settings.billing.offers": {
+            "rows": [
+                {"name": "عرض الساعة الذهبية", "minutes": 60, "price": 12, "from": "14:00", "to": "17:00", "active": True},
+                {"name": "باقة 3 ساعات", "minutes": 180, "price": 35, "from": "", "to": "", "active": True},
+                {"name": "ليلة كاملة", "minutes": 300, "price": 50, "from": "23:00", "to": "05:00", "active": True},
+                {"name": "عرض نهاية الأسبوع", "minutes": 240, "price": 45, "from": "", "to": "", "active": False},
+            ]
+        },
+    }
+    statements = []
+    for key, payload in catalogs.items():
+        blob = json.dumps(payload, ensure_ascii=False).replace("'", "''")
+        statements.append(
+            "IF NOT EXISTS (SELECT 1 FROM Settings WHERE SettingKey=N'%s') "
+            "INSERT INTO Settings (SettingKey, SettingValue, SettingGroup) "
+            "VALUES (N'%s', N'%s', 'billing')" % (key, key, blob)
+        )
+    return statements
+
+
 DEFAULT_DATA = {
     "Staff": [
         "IF NOT EXISTS (SELECT 1 FROM Staff WHERE Username='admin') INSERT INTO Staff (Username, PasswordHash, FullName, Role, IsActive) VALUES ('admin', 'admin123', N'مدير النظام', N'مدير', 1) ELSE UPDATE Staff SET PasswordHash='admin123', IsActive=1 WHERE Username='admin'"
@@ -446,7 +548,7 @@ DEFAULT_DATA = {
         "IF NOT EXISTS (SELECT 1 FROM GameCategories WHERE CategoryName='Party') INSERT INTO GameCategories (CategoryName, IconEmoji) VALUES ('Party', '🎉')",
         "IF NOT EXISTS (SELECT 1 FROM GameCategories WHERE CategoryName='Other') INSERT INTO GameCategories (CategoryName, IconEmoji) VALUES ('Other', '🎮')"
     ],
-    "Settings": _settings_seed() + [
+    "Settings": _settings_seed() + _billing_seed() + [
         "IF NOT EXISTS (SELECT 1 FROM Settings WHERE SettingKey='center_name') INSERT INTO Settings (SettingKey, SettingValue, SettingGroup) VALUES ('center_name', N'Gaming Center Pro', 'general')",
         "IF NOT EXISTS (SELECT 1 FROM Settings WHERE SettingKey='center_description') INSERT INTO Settings (SettingKey, SettingValue, SettingGroup) VALUES ('center_description', N'أحدث أجهزة الكمبيوتر - أسرع إنترنت - أفضل تجربة ألعاب', 'general')",
         "IF NOT EXISTS (SELECT 1 FROM Settings WHERE SettingKey='currency') INSERT INTO Settings (SettingKey, SettingValue, SettingGroup) VALUES ('currency', N'جنيه مصري (EGP)', 'financial')",

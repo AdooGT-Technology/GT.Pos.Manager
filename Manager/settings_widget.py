@@ -31,7 +31,7 @@ from Server.config import DB_NAME, DB_SERVER
 try:
     from version import APP_VERSION
 except Exception:  # pragma: no cover
-    APP_VERSION = "3.6.2"
+    APP_VERSION = "3.7.0"
 
 ROOT = Path(__file__).resolve().parent.parent
 

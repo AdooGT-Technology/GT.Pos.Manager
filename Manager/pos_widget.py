@@ -5,11 +5,13 @@ from __future__ import annotations
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QFrame, QGridLayout, QHBoxLayout, QLabel, QMessageBox, QScrollArea,
-    QSizePolicy, QVBoxLayout, QWidget,
+    QFrame, QGridLayout, QHBoxLayout, QMessageBox, QScrollArea, QSizePolicy,
+    QVBoxLayout, QWidget,
 )
 
-from Manager.theme import Colors
+from Manager.receipts import (
+    ReceiptDialog, build_lines, open_cash_drawer, receipt_path, receipt_settings,
+)
 from Manager.ui import (
     Card, EmptyState, SearchInput, Segmented, Toast, button, hline, label,
 )
@@ -140,6 +142,9 @@ class POSWidget(QWidget):
         cart.body.addWidget(self.tax_label)
         cart.body.addWidget(self.total_label)
         cart.body.addWidget(button("إتمام البيع", "primary", self.checkout))
+        self.receipt_button = button("الإيصال", "quiet", self.show_receipt, compact=True)
+        self.receipt_button.setEnabled(False)
+        cart.body.addWidget(self.receipt_button)
         cart.body.addWidget(button("تفريغ الفاتورة", "ghost", self.clear_cart, compact=True))
         root.addWidget(cart)
 
@@ -253,6 +258,8 @@ class POSWidget(QWidget):
             else f"{tax_name}: لا توجد ضريبة"
         )
         self.total_label.setText(self.data.settings.money(subtotal + tax))
+        if hasattr(self, "receipt_button"):
+            self.receipt_button.setEnabled(bool(self.cart))
 
     def _change(self, line: dict, delta: int):
         line["qty"] += delta
@@ -264,6 +271,31 @@ class POSWidget(QWidget):
         if 0 <= row < len(self.cart):
             self.cart.pop(row)
             self._render_cart()
+
+    def show_receipt(self):
+        """Preview the bill before paying."""
+        if not self.cart:
+            Toast(self, "الفاتورة فارغة", "warning")
+            return
+        subtotal = sum(float(l["product"].get("Price") or 0) * l["qty"] for l in self.cart)
+        rate, inclusive, _name = self.data.settings.tax()
+        total = subtotal if inclusive else subtotal * (1 + rate)
+        lines = build_lines(
+            [
+                {
+                    "name": line["product"].get("ProductName"),
+                    "qty": line["qty"],
+                    "price": line["product"].get("Price"),
+                }
+                for line in self.cart
+            ],
+            subtotal,
+            total - subtotal if not inclusive else 0.0,
+            total,
+            self.data.settings,
+            cashier="مدير النظام",
+        )
+        ReceiptDialog(lines, self.data.settings, self).exec()
 
     # ── checkout ─────────────────────────────────────────────────────────
     def checkout(self):
@@ -306,7 +338,29 @@ class POSWidget(QWidget):
             Toast(self, f"سُجّلت الفاتورة — {self.data.settings.money(total)}", "success")
         else:
             Toast(self, "لم تُحفظ الفاتورة: قاعدة البيانات غير متصلة", "warning", 3200)
+        lines = build_lines(
+            [
+                {
+                    "name": line["product"].get("ProductName"),
+                    "qty": line["qty"],
+                    "price": line["product"].get("Price"),
+                }
+                for line in self.cart
+            ],
+            subtotal,
+            total - subtotal if not inclusive else 0.0,
+            total,
+            self.data.settings,
+            cashier="مدير النظام",
+        )
+        try:
+            receipt_path(lines)
+        except OSError:
+            pass
         self.clear_cart()
         if saved:
             self.data.invalidate()
             self.reload()
+        if receipt_settings(self.data.settings).get("open_drawer"):
+            open_cash_drawer(self.data.settings, self)
+        ReceiptDialog(lines, self.data.settings, self).exec()

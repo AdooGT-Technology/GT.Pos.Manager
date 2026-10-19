@@ -1,8 +1,8 @@
 APP_NAME = "GT-POS Gizmo Manager"
 APP_TITLE = "Gaming Center Pro"
 APP_SUBTITLE = "Admin Panel"
-APP_VERSION = "3.6.2"
-APP_CODENAME = "Full Settings Control"
+APP_VERSION = "3.7.0"
+APP_CODENAME = "Billing & Live Sessions"
 VERSION = APP_VERSION
 DB_MIN_VERSION = "1.0.0"
 AUTHOR = "GT POS Team"

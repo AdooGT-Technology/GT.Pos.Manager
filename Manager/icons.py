@@ -19,6 +19,7 @@ ICON_NAMES = {
     "search", "refresh", "theme", "bell", "power", "sidebar", "grid",
     "monitor", "studio", "users", "cart", "wallet", "gamepad", "terminal",
     "chart", "gift", "trophy", "settings", "chevron", "chevron_down",
+    "clock", "receipt", "calendar",
 }
 
 
@@ -193,6 +194,38 @@ def _draw(name: str, painter: QPainter, color: str):
     elif name == "chevron":
         painter.drawLine(QPointF(9.4, 6.4), QPointF(14.6, 12))
         painter.drawLine(QPointF(14.6, 12), QPointF(9.4, 17.6))
+
+    elif name == "clock":
+        painter.drawEllipse(QRectF(3.6, 3.6, 16.8, 16.8))
+        painter.drawLine(QPointF(12, 7.2), QPointF(12, 12.4))
+        painter.drawLine(QPointF(12, 12.4), QPointF(15.8, 14.4))
+
+    elif name == "receipt":
+        path = QPainterPath()
+        path.moveTo(5.4, 3.8)
+        path.lineTo(18.6, 3.8)
+        path.lineTo(18.6, 20.2)
+        path.lineTo(16.2, 18.6)
+        path.lineTo(13.8, 20.2)
+        path.lineTo(12, 18.8)
+        path.lineTo(10.2, 20.2)
+        path.lineTo(7.8, 18.6)
+        path.lineTo(5.4, 20.2)
+        path.closeSubpath()
+        painter.drawPath(path)
+        painter.drawLine(QPointF(8.4, 8.2), QPointF(15.6, 8.2))
+        painter.drawLine(QPointF(8.4, 11.4), QPointF(15.6, 11.4))
+        painter.drawLine(QPointF(8.4, 14.6), QPointF(13.2, 14.6))
+
+    elif name == "calendar":
+        painter.drawRoundedRect(QRectF(3.4, 5.2, 17.2, 15.2), 2.6, 2.6)
+        painter.drawLine(QPointF(3.4, 9.6), QPointF(20.6, 9.6))
+        painter.drawLine(QPointF(8.2, 3.4), QPointF(8.2, 6.6))
+        painter.drawLine(QPointF(15.8, 3.4), QPointF(15.8, 6.6))
+        painter.setBrush(QColor(color))
+        painter.drawEllipse(QRectF(7.6, 12.4, 2.2, 2.2))
+        painter.drawEllipse(QRectF(12.4, 12.4, 2.2, 2.2))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
 
     elif name == "chevron_down":
         painter.drawLine(QPointF(6.4, 9.4), QPointF(12, 14.6))

@@ -239,8 +239,10 @@ class Bar(QWidget):
 
         width = int(self.width() * self._value / 100.0)
         if width > 0:
+            width = max(width, self.height())
+            left = self.width() - width if self.layoutDirection() == Qt.LayoutDirection.RightToLeft else 0
             painter.setBrush(QColor(self.tone_color()))
-            painter.drawRoundedRect(0, 0, max(width, self.height()), self.height(), radius, radius)
+            painter.drawRoundedRect(left, 0, width, self.height(), radius, radius)
 
     def refresh_theme(self):
         self.update()

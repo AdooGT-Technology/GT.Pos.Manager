@@ -100,7 +100,7 @@ class Data:
             " CPU_Usage, GPU_Usage, RAM_Usage, RAM_Total, RAM_Speed, Disk_Usage,"
             " Disk_Total, Disk_Health, CPU_Temp, GPU_Temp, GPU_Name, VRAM_Used,"
             " VRAM_Total, Net_Name, Net_Speed, Net_Upload, Net_Download, Net_Total,"
-            " UptimeMinutes, CurrentUser FROM Hosts WHERE IsActive = 1"
+            " UptimeMinutes, CurrentUser, HostGroup FROM Hosts WHERE IsActive = 1"
             " ORDER BY HostNumber",
             ttl=ttl, key="hosts",
         )
@@ -124,6 +124,7 @@ class Data:
             rows.append({
                 "HostId": index,
                 "HostName": f"PC-{index:02d}",
+                "HostGroup": "غرف VIP" if index in (1, 2, 13) else "أجهزة PC",
                 "HostNumber": index,
                 "IPAddress": f"192.168.1.{100 + index}",
                 "MACAddress": f"5C:60:BA:0A:{index:02X}:11",
@@ -161,7 +162,8 @@ class Data:
     # ── members ──────────────────────────────────────────────────────────
     def members(self, ttl: float = 10.0):
         rows = self.query(
-            "SELECT MemberId, Username, FullName, Phone, Balance, Points, MemberType, IsActive"
+            "SELECT MemberId, Username, FullName, Phone, Balance, Points, MemberType,"
+            " MemberGroup, PurchasedMinutes, IsActive"
             " FROM Members ORDER BY MemberId DESC",
             ttl=ttl, key="members",
         )
@@ -178,7 +180,8 @@ class Data:
         ]
         return [
             {"MemberId": i + 1, "Username": u, "FullName": n, "Phone": p,
-             "Balance": b, "Points": pts, "MemberType": t, "IsActive": 1}
+             "Balance": b, "Points": pts, "MemberType": t, "MemberGroup": t,
+             "PurchasedMinutes": (60 if i == 0 else 0), "IsActive": 1}
             for i, (u, n, p, b, pts, t) in enumerate(base)
         ]
 
@@ -209,11 +212,15 @@ class Data:
         ]
 
     def orders_today(self):
-        return self.query(
+        row = self.query(
             "SELECT ISNULL(SUM(FinalAmount), 0) AS total, COUNT(*) AS count"
             " FROM Orders WHERE CAST(CreatedAt AS DATE) = CAST(GETDATE() AS DATE)",
             ttl=15, key="orders_today",
         )
+        if row:
+            return row
+        orders = self.demo_orders()
+        return {"total": round(sum(o["FinalAmount"] for o in orders), 2), "count": len(orders)}
 
     def recent_orders(self, limit: int = 8):
         rows = self.query(
@@ -255,6 +262,85 @@ class Data:
             " ELSE INSERT INTO Settings (SettingKey, SettingValue, SettingGroup) VALUES (?, ?, ?)"
         )
         return self.execute(sql, (key, raw, key, key, raw, group))
+
+    # ── sessions ─────────────────────────────────────────────────────────
+    def active_sessions(self, ttl: float = 2.0):
+        rows = self.query(
+            "SELECT SessionId, HostId, MemberId, GuestName, SessionType, StartTime,"
+            " Duration, Cost, Status, HostName, MemberName, HostGroup, BillingProfile,"
+            " HourlyRate, PaidMode, MinutesPurchased, AmountCharged"
+            " FROM Sessions WHERE Status = N'نشط' ORDER BY StartTime DESC",
+            ttl=ttl, key="active_sessions",
+        )
+        return rows or []
+
+    def recent_sessions(self, limit: int = 40, ttl: float = 6.0):
+        rows = self.query(
+            f"SELECT TOP {int(limit)} SessionId, HostId, GuestName, MemberName, StartTime,"
+            " EndTime, Duration, Cost, Status, HostName, HostGroup, PaidMode"
+            " FROM Sessions ORDER BY SessionId DESC",
+            ttl=ttl, key="recent_sessions",
+        )
+        return rows or []
+
+    def shifts(self, ttl: float = 5.0):
+        rows = self.query(
+            "SELECT TOP 40 ShiftId, StaffName, OpenedAt, ClosedAt, OpeningCash,"
+            " ExpectedCash, ClosingCash, Difference, SalesCount, Status, Note"
+            " FROM Shifts ORDER BY ShiftId DESC",
+            ttl=ttl, key="shifts",
+        )
+        return rows or self.demo_shifts()
+
+    def demo_shifts(self):
+        now = datetime.now()
+        return [
+            {"ShiftId": 103, "StaffName": "أحمد سامي", "OpenedAt": now.replace(hour=16, minute=0, second=0),
+             "ClosedAt": None, "OpeningCash": 300.0, "ExpectedCash": 0.0, "ClosingCash": 0.0,
+             "Difference": 0.0, "SalesCount": 0, "Status": "مفتوحة", "Note": ""},
+            {"ShiftId": 102, "StaffName": "منى عبد الله",
+             "OpenedAt": (now - timedelta(days=1)).replace(hour=8, minute=5, second=0),
+             "ClosedAt": (now - timedelta(days=1)).replace(hour=16, minute=2, second=0),
+             "OpeningCash": 250.0, "ExpectedCash": 1_180.0, "ClosingCash": 1_200.0,
+             "Difference": 20.0, "SalesCount": 34, "Status": "مغلقة", "Note": "إيصال ناقص"},
+            {"ShiftId": 101, "StaffName": "أحمد سامي",
+             "OpenedAt": (now - timedelta(days=2)).replace(hour=16, minute=0, second=0),
+             "ClosedAt": (now - timedelta(days=2)).replace(hour=23, minute=55, second=0),
+             "OpeningCash": 300.0, "ExpectedCash": 865.5, "ClosingCash": 850.0,
+             "Difference": -15.5, "SalesCount": 21, "Status": "مغلقة", "Note": "عجز بسيط"},
+        ]
+
+    def cash_movements(self, shift_id=None, ttl: float = 5.0):
+        if shift_id:
+            rows = self.query(
+                "SELECT TOP 60 MovementId, ShiftId, Kind, Amount, Reason, CreatedBy,"
+                " CreatedAt FROM CashMovements WHERE ShiftId = ? ORDER BY MovementId DESC",
+                (shift_id,), ttl=ttl, key=f"cash_movements_{shift_id}",
+            )
+        else:
+            rows = self.query(
+                "SELECT TOP 60 MovementId, ShiftId, Kind, Amount, Reason, CreatedBy,"
+                " CreatedAt FROM CashMovements ORDER BY MovementId DESC",
+                ttl=ttl, key="cash_movements",
+            )
+        return rows or self.demo_cash_movements(shift_id)
+
+    def demo_cash_movements(self, shift_id=None):
+        now = datetime.now()
+        rows = [
+            {"MovementId": 3, "ShiftId": 103, "Kind": "in", "Amount": 120.0,
+             "Reason": "إيداع نقدي من لاعب", "CreatedBy": "أحمد سامي",
+             "CreatedAt": now - timedelta(minutes=25)},
+            {"MovementId": 2, "ShiftId": 103, "Kind": "out", "Amount": 40.0,
+             "Reason": "شراء مستلزمات", "CreatedBy": "أحمد سامي",
+             "CreatedAt": now - timedelta(minutes=70)},
+            {"MovementId": 1, "ShiftId": 102, "Kind": "in", "Amount": 60.0,
+             "Reason": "تسوية نهاية اليوم", "CreatedBy": "منى عبد الله",
+             "CreatedAt": now - timedelta(days=1)},
+        ]
+        if shift_id:
+            return [row for row in rows if row["ShiftId"] == shift_id]
+        return rows
 
     # ── games ────────────────────────────────────────────────────────────
     def games(self, ttl: float = 20.0):
@@ -317,8 +403,10 @@ class Data:
         total = len(hosts)
         members = self.members()
         active = len(members) if not self.live else len([m for m in members if m.get("IsActive")])
-        sales = self.orders_today()
-        revenue = float(sales[0].get("total") or 0) if sales else 0.0
+        sales = self.orders_today() or {}
+        if isinstance(sales, list):
+            sales = sales[0] if sales else {}
+        revenue = float(sales.get("total") or 0)
         if not self.live:
             revenue = 486.0
         return {
@@ -327,5 +415,5 @@ class Data:
             "hosts_idle": total - busy,
             "members": active,
             "revenue": revenue,
-            "orders": int(sales[0].get("count") or 0) if sales else 0,
+            "orders": int(sales.get("count") or 0),
         }
