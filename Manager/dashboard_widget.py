@@ -2,11 +2,11 @@ import os
 import random
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QGridLayout, QScrollArea, QProgressBar, QSizePolicy
+    QFrame, QGridLayout, QScrollArea, QProgressBar
 )
-from PyQt6.QtCore import Qt, QTimer, QTime
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont
-from Manager.theme import Colors, get_main_stylesheet
+from Manager.theme import Colors
 
 class MiniBar(QWidget):
     def __init__(self, value=0, color=None, height=6):
@@ -23,35 +23,28 @@ class MiniBar(QWidget):
         self.bar.setValue(self.value)
         self.bar.setTextVisible(False)
         self.bar.setFixedHeight(height)
+        self.apply_style()
+        layout.addWidget(self.bar)
+
+    def apply_style(self):
         self.bar.setStyleSheet(f"""
             QProgressBar {{
                 background-color: {Colors.BG_CARD_LIGHT};
                 border: none;
-                border-radius: {height//2}px;
+                border-radius: {self.bar.height()//2}px;
             }}
             QProgressBar::chunk {{
                 background-color: {self.color};
-                border-radius: {height//2}px;
+                border-radius: {self.bar.height()//2}px;
             }}
         """)
-        layout.addWidget(self.bar)
 
     def set_value(self, val, color=None):
         self.value = max(0, min(100, val))
         self.bar.setValue(self.value)
         if color:
             self.color = color
-            self.bar.setStyleSheet(f"""
-                QProgressBar {{
-                    background-color: {Colors.BG_CARD_LIGHT};
-                    border: none;
-                    border-radius: {self.bar.height()//2}px;
-                }}
-                QProgressBar::chunk {{
-                    background-color: {self.color};
-                    border-radius: {self.bar.height()//2}px;
-                }}
-            """)
+            self.apply_style()
 
 class StatCard(QFrame):
     def __init__(self, icon: str, value: str, label: str, subtext: str = "", accent_color: str = None):
@@ -183,8 +176,8 @@ class HardwareOverlay(QFrame):
         layout.setSpacing(12)
         
         header = QHBoxLayout()
-        self.lbl_pc_name = QLabel("💻 الجهاز #")
-        self.lbl_pc_name.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        self.lbl_pc_name = QLabel("💻 حالة العتاد والشبكة")
+        self.lbl_pc_name.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         self.lbl_pc_name.setStyleSheet(f"color: {Colors.CYAN};")
         
         btn_close = QPushButton("✕")
@@ -239,6 +232,7 @@ class HardwareOverlay(QFrame):
         grid.addWidget(self.disk_bar, 7, 0)
         
         layout.addLayout(grid)
+        layout.addStretch()
         
         net_frame = QFrame()
         net_frame.setStyleSheet(f"""
@@ -252,11 +246,11 @@ class HardwareOverlay(QFrame):
         net_layout.setContentsMargins(10, 8, 10, 8)
         net_layout.setSpacing(4)
         
-        self.lbl_net_status = QLabel("🌐 حالة الشبكة: 1000 Mbps Full Duplex (ممتاز)")
-        self.lbl_net_status.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        self.lbl_net_status = QLabel("🌐 حالة الشبكة: 1000 Mbps Full Duplex")
+        self.lbl_net_status.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
         self.lbl_net_status.setStyleSheet(f"color: {Colors.GREEN};")
         
-        self.lbl_traffic = QLabel("⬆ رفع: 14.2 Mbps  |  ⬇ تحميل: 88.5 Mbps  |  📦 إجمالي حركة البيانات: 102.7 Mbps")
+        self.lbl_traffic = QLabel("⬆ رفع: 14.2 Mbps  |  ⬇ تحميل: 88.5 Mbps")
         self.lbl_traffic.setFont(QFont("Segoe UI", 9))
         self.lbl_traffic.setStyleSheet(f"color: {Colors.TEXT_MUTED};")
 
@@ -266,7 +260,7 @@ class HardwareOverlay(QFrame):
         layout.addWidget(net_frame)
 
     def show_device_stats(self, host_number, host_name):
-        self.lbl_pc_name.setText(f"💻 حالة العتاد والشبكة: {host_name} (#{host_number})")
+        self.lbl_pc_name.setText(f"💻 حالة العتاد: {host_name} (#{host_number})")
         
         c_use = random.randint(15, 85)
         c_temp = random.randint(45, 75)
@@ -281,17 +275,17 @@ class HardwareOverlay(QFrame):
         self.lbl_cpu_text.setText(f"المعالج: Intel Core i7 13700K ({c_use}% | حرارة: {c_temp}°C)")
         
         self.gpu_bar.set_value(g_use, Colors.RED if g_use > 85 else Colors.PURPLE)
-        self.lbl_gpu_text.setText(f"كرت الشاشة: NVIDIA RTX 4070 ({g_use}% | VRAM: {g_vram}/12 GB | حرارة: {g_temp}°C)")
+        self.lbl_gpu_text.setText(f"كرت الشاشة: NVIDIA RTX 4070 ({g_use}% | VRAM: {g_vram}/12 GB | {g_temp}°C)")
         
         self.ram_bar.set_value(r_use, Colors.RED if r_use > 85 else Colors.GREEN)
         self.lbl_ram_text.setText(f"الذاكرة العشوائية: {r_gb} / 32 GB ({r_use}%)")
         
         self.disk_bar.set_value(d_use, Colors.ORANGE if d_use > 80 else Colors.CYAN)
-        self.lbl_disk_text.setText(f"التخزين SSD NVMe: {int(d_use * 10)} / 1000 GB ({d_use}%) - حالة القرص: ممتازة 100%")
+        self.lbl_disk_text.setText(f"التخزين SSD NVMe: {int(d_use * 10)} / 1000 GB ({d_use}%)")
         
         up = round(random.uniform(1.0, 45.0), 1)
         down = round(random.uniform(5.0, 220.0), 1)
-        self.lbl_traffic.setText(f"⬆ رفع: {up} Mbps  |  ⬇ تحميل: {down} Mbps  |  📦 إجمالي الحركة: {round(up+down, 1)} Mbps")
+        self.lbl_traffic.setText(f"⬆ رفع: {up} Mbps  |  ⬇ تحميل: {down} Mbps")
         
         self.show()
 
@@ -483,20 +477,21 @@ class DashboardWidget(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet("QScrollArea { background: transparent; }")
+        scroll.setStyleSheet("background: transparent; border: none;")
 
         self.devices_container = QWidget()
+        self.devices_container.setStyleSheet("background: transparent;")
         self.devices_layout = QVBoxLayout(self.devices_container)
         self.devices_layout.setContentsMargins(0, 0, 0, 0)
         self.devices_layout.setSpacing(8)
-        self.devices_layout.addStretch()
 
         scroll.setWidget(self.devices_container)
         left_layout.addWidget(scroll)
 
-        content_layout.addLayout(left_layout, 2)
-
         self.hw_overlay = HardwareOverlay(self)
+        
+        # Hardware on the left (index 1 in RTL puts it on the left visually)
+        content_layout.addLayout(left_layout, 2)
         content_layout.addWidget(self.hw_overlay, 1)
 
         main_layout.addLayout(content_layout)
@@ -524,10 +519,13 @@ class DashboardWidget(QWidget):
                 for i in range(1, 13)
             ]
 
-        while self.devices_layout.count() > 1:
-            item = self.devices_layout.takeAt(0)
+        # Safely clear old widgets
+        for i in reversed(range(self.devices_layout.count())):
+            item = self.devices_layout.itemAt(i)
             if item.widget():
                 item.widget().deleteLater()
+            else:
+                self.devices_layout.removeItem(item)
 
         online_count = sum(1 for h in hosts if h.get("Status") in ["Available", "InUse", "Busy"])
         total_count = len(hosts)
@@ -535,7 +533,9 @@ class DashboardWidget(QWidget):
 
         for h in hosts:
             row = DeviceRow(h, on_monitor_callback=self.show_hw_overlay)
-            self.devices_layout.insertWidget(self.devices_layout.count() - 1, row)
+            self.devices_layout.addWidget(row)
+            
+        self.devices_layout.addStretch()
 
     def show_hw_overlay(self, host_number, host_name):
         self.hw_overlay.show_device_stats(host_number, host_name)
