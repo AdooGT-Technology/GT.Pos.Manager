@@ -199,7 +199,7 @@ class SessionsWidget(QWidget):
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.table.itemSelectionChanged.connect(self._selection_changed)
         header = self.table.horizontalHeader()
-        for index, width in enumerate((88, 120, 76, 74, 58, 94, 96, 72)):
+        for index, width in enumerate((82, 110, 70, 100, 54, 88, 90, 66)):
             self.table.setColumnWidth(index, width)
         header.setStretchLastSection(True)
         header.setMinimumSectionSize(70)

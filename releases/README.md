@@ -13,7 +13,7 @@
 
 | الإصدار | الملف | الحجم | SHA256 |
 |---|---|---|---|
-| 3.7.0 | `GT.Pos.Manager-3.7.0.zip` | 222 KB | `8ed916f68d58f15201e543ca62a68af3d0e02b13ab216123908ddc77b8435f65` |
+| 3.7.0 | `GT.Pos.Manager-3.7.0.zip` | 222 KB | `0d545e1f823e080ef73756038b7cbeed7422c1f5fc90317808c01a74302f7fae` |
 | 3.6.2 | `GT.Pos.Manager-3.6.2.zip` | 190 KB | `53b361678f3d22ca96c65ba2e5787f7e2d46057b1be97b5777088ad4b788a024` |
 | 3.6.1 | `GT.Pos.Manager-3.6.1.zip` | 174 KB | `c9bf5b1c1afda9f9684530195362b830581c98710151072cb68b3c20e9b8fcfb` |
 | 3.6.0 | `GT.Pos.Manager-3.6.0.zip` | 163 KB | `41f5dfe053c9060a51e45c074d82cd3bbdec8a9e0e04d71d5d3a9e1b735636b3` |
